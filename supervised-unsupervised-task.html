@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Do Machines Learn?</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f0f4f8; min-height: 100vh;
+  display: flex; align-items: flex-start; justify-content: center; padding: 20px;
+}
+.screen { display: none; width: 100%; max-width: 740px; animation: fadeIn 0.35s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.card { background: white; border-radius: 14px; box-shadow: 0 2px 18px rgba(0,0,0,0.09); overflow: hidden; margin-bottom: 16px; }
+.card-pad { padding: 28px 32px; }
+.btn { border:none; border-radius:8px; padding:13px 28px; font-size:1rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+.btn-primary { background:#5b4fcf; color:white; }
+.btn-primary:hover { background:#4338b0; transform:translateY(-1px); }
+.btn-secondary { background:#f8f9fa; color:#495057; border:2px solid #dee2e6; }
+.btn-secondary:hover { background:#e9ecef; }
+.btn:disabled { opacity:0.4; cursor:not-allowed; transform:none !important; }
+
+/* ── INTRO ── */
+.intro-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background:#5b4fcf; color:white; padding:6px 14px; border-radius:20px;
+  font-size:0.82rem; font-weight:600; letter-spacing:0.5px; margin-bottom:20px;
+}
+.intro-header h1 { font-size:1.9rem; color:#212529; margin-bottom:8px; }
+.intro-header p { color:#6c757d; font-size:1.02rem; line-height:1.6; margin-bottom:24px; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:20px 0; }
+.concept-box { border-radius:10px; padding:16px; border:2px solid; }
+.concept-box.supervised { border-color:#5b4fcf; background:#f5f3ff; }
+.concept-box.unsupervised { border-color:#0ea5e9; background:#f0f9ff; }
+.concept-box h3 { font-size:0.9rem; margin-bottom:6px; }
+.concept-box.supervised h3 { color:#5b4fcf; }
+.concept-box.unsupervised h3 { color:#0ea5e9; }
+.concept-box p { font-size:0.85rem; color:#555; line-height:1.55; }
+
+/* ── LABELLING ── */
+.phase-header {
+  background: linear-gradient(135deg, #5b4fcf, #7c6de0);
+  color:white; padding:16px 24px;
+}
+.phase-header .phase-tag {
+  font-size:0.72rem; text-transform:uppercase; letter-spacing:2px;
+  opacity:0.8; margin-bottom:4px;
+}
+.phase-header h2 { font-size:1.25rem; margin-bottom:2px; }
+.phase-header p { font-size:0.88rem; opacity:0.85; }
+
+.progress-row { display:flex; align-items:center; gap:12px; padding:12px 24px; background:#f5f3ff; border-bottom:1px solid #ede9fe; }
+.progress-bar-outer { flex:1; height:8px; background:#ddd; border-radius:4px; overflow:hidden; }
+.progress-bar-fill { height:100%; background:#5b4fcf; border-radius:4px; transition:width 0.3s ease; }
+.progress-label { font-size:0.82rem; color:#5b4fcf; font-weight:600; white-space:nowrap; }
+
+.animal-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:20px 24px; }
+.animal-card {
+  border:3px solid #e5e7eb; border-radius:12px; padding:10px 8px 12px;
+  text-align:center; transition:all 0.2s; background:white;
+}
+.animal-card.labelled { border-color:#5b4fcf; background:#faf5ff; }
+.animal-card svg { display:block; margin:0 auto 6px; }
+.animal-id { font-size:0.7rem; color:#aaa; margin-bottom:6px; }
+.label-buttons { display:flex; flex-direction:column; gap:4px; }
+.lbl-btn {
+  border:1.5px solid #e5e7eb; border-radius:6px; padding:4px 6px;
+  font-size:0.75rem; cursor:pointer; background:white; transition:all 0.15s;
+  font-weight:500;
+}
+.lbl-btn:hover { border-color:#5b4fcf; color:#5b4fcf; }
+.lbl-btn.selected { background:#5b4fcf; color:white; border-color:#5b4fcf; }
+.lbl-btn.selected:hover { background:#4338b0; }
+
+.grid-footer { padding:16px 24px; border-top:1px solid #f0f0f0; text-align:center; }
+
+/* ── TRAINING ANIMATION ── */
+.training-screen { padding:40px; text-align:center; }
+.training-screen h2 { font-size:1.4rem; color:#5b4fcf; margin-bottom:8px; }
+.train-bar-outer { background:#e5e7eb; border-radius:8px; height:14px; margin:20px 0; overflow:hidden; }
+.train-bar-fill { height:100%; background:linear-gradient(90deg,#5b4fcf,#a78bfa); border-radius:8px; width:0%; transition:width 0.4s ease; }
+.train-status { font-size:0.9rem; color:#6c757d; height:22px; transition:opacity 0.3s; }
+
+/* ── TEST CLASSIFICATION ── */
+.test-intro { padding:20px 24px 0; font-size:0.9rem; color:#555; }
+.test-queue { padding:16px 24px 24px; }
+.test-card {
+  border:2px solid #e5e7eb; border-radius:12px; padding:16px;
+  display:flex; align-items:center; gap:16px; margin-bottom:12px;
+  transition:all 0.3s; opacity:0.4;
+}
+.test-card.active { opacity:1; border-color:#5b4fcf; background:#faf5ff; }
+.test-card.done { opacity:1; border-color:#e5e7eb; }
+.test-animal-svg { flex-shrink:0; }
+.test-details { flex:1; }
+.test-id { font-size:0.75rem; color:#aaa; margin-bottom:4px; }
+.test-thinking { font-size:0.85rem; color:#5b4fcf; font-style:italic; }
+.test-result { display:none; }
+.test-result.show { display:block; }
+.test-label { font-size:1rem; font-weight:700; margin-bottom:4px; }
+.test-label.correct { color:#16a34a; }
+.test-label.wrong { color:#dc2626; }
+.confidence-bar { background:#e5e7eb; border-radius:4px; height:8px; margin-bottom:4px; overflow:hidden; }
+.confidence-fill { height:100%; border-radius:4px; width:0; transition:width 1s ease; }
+.confidence-fill.high { background:#16a34a; }
+.confidence-fill.medium { background:#f59e0b; }
+.confidence-note { font-size:0.75rem; color:#888; }
+
+/* ── SUPERVISED DEBRIEF ── */
+.sup-debrief { padding:28px 32px; }
+.sup-debrief h2 { font-size:1.3rem; color:#5b4fcf; margin-bottom:16px; }
+.insight-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; }
+.insight-box { border-radius:10px; padding:14px; font-size:0.88rem; line-height:1.6; }
+.insight-box.purple { background:#f5f3ff; border:1.5px solid #c4b5fd; color:#4c1d95; }
+.insight-box.red    { background:#fef2f2; border:1.5px solid #fca5a5; color:#7f1d1d; }
+.insight-box h4 { font-size:0.78rem; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; opacity:0.7; }
+.key-vocab { background:#faf5ff; border-left:4px solid #5b4fcf; border-radius:0 8px 8px 0; padding:14px 16px; margin:16px 0; font-size:0.88rem; line-height:1.7; }
+
+/* ── UNSUPERVISED ── */
+.unsup-header {
+  background:linear-gradient(135deg,#0ea5e9,#38bdf8);
+  color:white; padding:16px 24px;
+}
+.unsup-header .phase-tag { font-size:0.72rem; text-transform:uppercase; letter-spacing:2px; opacity:0.8; margin-bottom:4px; }
+.unsup-header h2 { font-size:1.25rem; margin-bottom:2px; }
+.unsup-header p { font-size:0.88rem; opacity:0.85; }
+
+.cluster-stage { padding:20px 24px 0; }
+.cluster-stage p { font-size:0.9rem; color:#555; margin-bottom:14px; line-height:1.6; }
+
+.cluster-canvas {
+  position:relative; width:100%; height:280px;
+  background:#f8fafc; border:2px solid #e2e8f0; border-radius:12px;
+  overflow:hidden; margin-bottom:14px;
+}
+.cluster-dot {
+  position:absolute; width:40px; height:40px; text-align:center;
+  line-height:40px; font-size:1.4rem; border-radius:50%;
+  transition:all 1.4s cubic-bezier(0.25,0.46,0.45,0.94);
+  transform:translate(-50%,-50%); cursor:default;
+  user-select:none;
+}
+.cluster-ring {
+  position:absolute; border-radius:50%; border:3px solid transparent;
+  transform:translate(-50%,-50%); opacity:0;
+  transition:opacity 0.5s ease, transform 0.5s ease;
+  pointer-events:none;
+}
+.cluster-ring.show { opacity:0.6; }
+.cluster-ring.cats  { border-color:#f59e0b; background:rgba(245,158,11,0.06); }
+.cluster-ring.dogs  { border-color:#3b82f6; background:rgba(59,130,246,0.06); }
+.cluster-ring.birds { border-color:#10b981; background:rgba(16,185,129,0.06); }
+.cluster-label {
+  position:absolute; font-size:0.72rem; font-weight:700; opacity:0;
+  transition:opacity 0.5s ease 0.3s; border-radius:12px;
+  padding:3px 8px; transform:translate(-50%,-50%);
+}
+.cluster-label.show { opacity:1; }
+.cluster-label.cats  { background:#fef3c7; color:#92400e; border:1.5px solid #f59e0b; }
+.cluster-label.dogs  { background:#eff6ff; color:#1e40af; border:1.5px solid #3b82f6; }
+.cluster-label.birds { background:#ecfdf5; color:#065f46; border:1.5px solid #10b981; }
+
+.cluster-controls { display:flex; align-items:center; gap:12px; padding:0 24px 16px; flex-wrap:wrap; }
+.cluster-step-label { font-size:0.85rem; color:#64748b; }
+
+.unsup-reveal { padding:0 24px 24px; display:none; }
+.unsup-reveal.show { display:block; }
+.reveal-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0; }
+.reveal-cell { border-radius:10px; padding:12px; text-align:center; font-size:0.85rem; }
+.reveal-cell.cats  { background:#fef3c7; border:1.5px solid #f59e0b; }
+.reveal-cell.dogs  { background:#eff6ff; border:1.5px solid #3b82f6; }
+.reveal-cell.birds { background:#ecfdf5; border:1.5px solid #10b981; }
+.reveal-cell .icon { font-size:1.5rem; display:block; margin-bottom:4px; }
+.reveal-cell strong { display:block; margin-bottom:2px; font-size:0.9rem; }
+.reveal-cell small { color:#666; font-size:0.78rem; }
+
+/* ── FINAL DEBRIEF ── */
+.comparison-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0; }
+.compare-card { border-radius:12px; padding:18px; }
+.compare-card.supervised   { background:#f5f3ff; border:2px solid #c4b5fd; }
+.compare-card.unsupervised { background:#f0f9ff; border:2px solid #7dd3fc; }
+.compare-card h3 { font-size:1rem; margin-bottom:12px; }
+.compare-card.supervised h3   { color:#5b4fcf; }
+.compare-card.unsupervised h3 { color:#0ea5e9; }
+.compare-row { display:flex; gap:8px; margin-bottom:8px; font-size:0.85rem; line-height:1.5; }
+.compare-row .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.compare-card.supervised .dot   { background:#5b4fcf; }
+.compare-card.unsupervised .dot { background:#0ea5e9; }
+
+.clinical-box { background:#fff8e7; border:2px solid #fcd34d; border-radius:10px; padding:16px 20px; margin:16px 0; font-size:0.9rem; line-height:1.7; color:#555; }
+.clinical-box h4 { color:#d97706; margin-bottom:8px; }
+
+.vocab-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0; }
+.vocab-item { background:#f8f9fa; border-radius:8px; padding:12px; font-size:0.83rem; }
+.vocab-item strong { display:block; margin-bottom:4px; color:#5b4fcf; font-size:0.88rem; }
+
+.btn-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; justify-content:center; }
+
+@media(max-width:520px){
+  .animal-grid { grid-template-columns:repeat(2,1fr); }
+  .two-col, .insight-row, .comparison-grid, .vocab-grid { grid-template-columns:1fr; }
+  .card-pad { padding:20px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ INTRO ═══════ -->
+<div id="screen-intro" class="screen active">
+  <div class="card">
+    <div class="card-pad">
+      <div class="intro-badge">🤖 AI Foundations</div>
+      <div class="intro-header">
+        <h1>How Do Machines Learn?</h1>
+        <p>Before a machine can recognise a tumour on a scan or flag a deteriorating patient, it has to <em>learn</em> — and there are fundamentally different ways that learning can happen. In this task you'll experience both.</p>
+      </div>
+      <div class="two-col">
+        <div class="concept-box supervised">
+          <h3>Part 1 — Supervised Learning</h3>
+          <p>You provide labelled examples. The algorithm learns to map inputs to correct outputs. Like learning with an answer key.</p>
+        </div>
+        <div class="concept-box unsupervised">
+          <h3>Part 2 — Unsupervised Learning</h3>
+          <p>No labels are given. The algorithm finds its own patterns and groupings in the data. No answer key — just structure.</p>
+        </div>
+      </div>
+      <p style="font-size:0.88rem;color:#888;margin:12px 0 24px;text-align:center;">You'll start by labelling animals — then watch what happens when you hand the same task to an algorithm.</p>
+      <button class="btn btn-primary" onclick="showScreen('screen-label')" style="width:100%;padding:15px;font-size:1.05rem;">
+        Start: label the training data →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SUPERVISED — LABEL ═══════ -->
+<div id="screen-label" class="screen">
+  <div class="card">
+    <div class="phase-header">
+      <div class="phase-tag">Part 1 of 2 — Supervised Learning</div>
+      <h2>Step 1: Create the Training Dataset</h2>
+      <p>Label each animal. You're doing the job a data labeller does before an algorithm can be trained.</p>
+    </div>
+    <div class="progress-row">
+      <div class="progress-bar-outer"><div class="progress-bar-fill" id="label-progress-fill" style="width:0%"></div></div>
+      <div class="progress-label" id="label-progress-text">0 / 8 labelled</div>
+    </div>
+    <div class="animal-grid" id="training-grid"></div>
+    <div class="grid-footer">
+      <button class="btn btn-primary" id="btn-train" disabled onclick="startTraining()">
+        Train the algorithm →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ TRAINING ANIMATION ═══════ -->
+<div id="screen-training" class="screen">
+  <div class="card">
+    <div class="phase-header">
+      <div class="phase-tag">Part 1 of 2 — Supervised Learning</div>
+      <h2>Step 2: Algorithm Training</h2>
+      <p>The algorithm is processing your labelled examples and building an internal model.</p>
+    </div>
+    <div class="training-screen">
+      <div style="font-size:3rem;margin-bottom:12px;">🧠</div>
+      <h2>Training in progress…</h2>
+      <p style="color:#888;font-size:0.9rem;margin-bottom:20px;">Your 8 labelled examples are being used to teach the algorithm what each animal looks like.</p>
+      <div class="train-bar-outer">
+        <div class="train-bar-fill" id="train-bar-fill"></div>
+      </div>
+      <div class="train-status" id="train-status">Initialising…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SUPERVISED — TEST ═══════ -->
+<div id="screen-test" class="screen">
+  <div class="card">
+    <div class="phase-header">
+      <div class="phase-tag">Part 1 of 2 — Supervised Learning</div>
+      <h2>Step 3: Algorithm Classifies New Animals</h2>
+      <p>These 4 animals were not in the training set. Watch the algorithm predict their labels.</p>
+    </div>
+    <div class="test-intro">
+      <p>The algorithm has never seen these animals — but it learned patterns from your labels. For each one it produces a prediction and a confidence score.</p>
+    </div>
+    <div class="test-queue" id="test-queue"></div>
+    <div class="grid-footer">
+      <button class="btn btn-primary" id="btn-next-sup" disabled onclick="showSupDebrief()">
+        See what this means →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SUPERVISED DEBRIEF ═══════ -->
+<div id="screen-sup-debrief" class="screen">
+  <div class="card">
+    <div class="phase-header">
+      <div class="phase-tag">Part 1 of 2 — Supervised Learning</div>
+      <h2>What just happened?</h2>
+      <p>You experienced the core loop of supervised machine learning.</p>
+    </div>
+    <div class="sup-debrief">
+      <p style="color:#555;line-height:1.7;margin-bottom:16px;">
+        When you labelled those 8 animals, you were creating <strong>training data</strong> — pairs of (input, correct label). The algorithm found patterns that separate the categories: shape of ears, body form, presence of a beak. It then applied those patterns to animals it had never seen.
+      </p>
+      <div class="insight-row">
+        <div class="insight-box purple" id="debrief-right-box">
+          <h4>✅ What went right</h4>
+          Three of the four test animals were classified correctly with high confidence. The algorithm generalised successfully from your 8 examples.
+        </div>
+        <div class="insight-box red" id="debrief-wrong-box">
+          <h4>⚠️ What went wrong</h4>
+          Animal #12 was misclassified — labelled as a cat (61% confidence) but actually a dog. Small training sets and similar-looking cases cause errors.
+        </div>
+      </div>
+      <div class="key-vocab">
+        <strong>Key vocabulary:</strong><br>
+        <strong>Training data</strong> — labelled examples the algorithm learns from.<br>
+        <strong>Generalisation</strong> — applying learned patterns to new, unseen data.<br>
+        <strong>Confidence score</strong> — the algorithm's certainty in its prediction (not the same as accuracy).<br>
+        <strong>Misclassification</strong> — an error where the predicted label doesn't match the true label.
+      </div>
+      <p style="font-size:0.9rem;color:#555;line-height:1.65;margin-bottom:20px;">
+        In clinical AI, supervised learning is used to train models to detect cancer on imaging, predict deterioration from vital signs, or flag abnormal lab results — but all of these require large amounts of <em>carefully labelled</em> clinical data before training can begin.
+      </p>
+      <button class="btn btn-primary" onclick="showUnsupervised()" style="width:100%;padding:15px;">
+        Part 2: What if there are no labels? →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ UNSUPERVISED ═══════ -->
+<div id="screen-unsup" class="screen">
+  <div class="card">
+    <div class="unsup-header">
+      <div class="phase-tag">Part 2 of 2 — Unsupervised Learning</div>
+      <h2>Same Animals. No Labels.</h2>
+      <p>The algorithm gets 12 animals and no guidance. Can it find the groups itself?</p>
+    </div>
+
+    <div class="cluster-stage">
+      <p>The 12 animals below are scattered randomly. There are no labels — the algorithm doesn't know what a "cat" or "dog" is. Press <strong>Start clustering</strong> to watch it find patterns and group similar animals together.</p>
+      <div class="cluster-canvas" id="cluster-canvas">
+        <!-- dots injected by JS -->
+      </div>
+      <div class="cluster-controls">
+        <button class="btn btn-primary" id="btn-cluster" onclick="runClustering()">▶ Start clustering</button>
+        <span class="cluster-step-label" id="cluster-step">Ready — animals are scattered with no labels</span>
+      </div>
+    </div>
+
+    <div class="unsup-reveal" id="unsup-reveal">
+      <p style="font-size:0.9rem;color:#555;line-height:1.65;margin-bottom:10px;">
+        The algorithm found <strong>3 groups</strong> based purely on visual similarity — without ever being told what those groups were called. When we overlay the true labels, Group B = dogs and Group C = birds. But look at Group A: it contains 4 cats <strong>and one bird 🐦</strong> — placed there because its compact round body was more similar to the cats than to the other birds. The algorithm doesn't know what a "bird" is. It only knows: <em>"these look more like each other than like those."</em>
+      </p>
+      <div class="reveal-grid">
+        <div class="reveal-cell cats">
+          <span class="icon">🐱🐱🐱🐱🐦</span>
+          <strong>Group A ⚠️</strong>
+          <small>4 cats + 1 misclassified bird — round compact bodies fooled the algorithm</small>
+        </div>
+        <div class="reveal-cell dogs">
+          <span class="icon">🐶</span>
+          <strong>Group B</strong>
+          <small>Floppy ears, longer snouts, similar posture</small>
+        </div>
+        <div class="reveal-cell birds">
+          <span class="icon">🐦</span>
+          <strong>Group C</strong>
+          <small>Round bodies, visible beaks, small frames</small>
+        </div>
+      </div>
+      <div style="background:#f0f9ff;border-left:4px solid #0ea5e9;border-radius:0 8px 8px 0;padding:14px 16px;font-size:0.88rem;line-height:1.65;margin-top:12px;">
+        <strong>The important limitation:</strong> you can see that 🐦 in Group A — one bird was clustered with the cats because its compact, round body looked more similar to the cats than to the other birds. No human told the algorithm that birds and cats are different species. It only had shapes. Unsupervised learning is powerful for exploring unknown data — but its groups don't always map onto the categories humans care about. In medicine, this matters: an algorithm might cluster patients by lab values into groups that don't correspond to any recognisable diagnosis, or that reflect data collection biases rather than real disease patterns.
+      </div>
+      <div class="grid-footer" style="padding:16px 0 0;">
+        <button class="btn btn-primary" onclick="showFinalDebrief()" style="width:100%;padding:15px;">
+          Compare supervised vs unsupervised →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ FINAL DEBRIEF ═══════ -->
+<div id="screen-debrief" class="screen">
+  <div class="card">
+    <div class="card-pad">
+      <h2 style="font-size:1.5rem;color:#212529;margin-bottom:4px;">Supervised vs Unsupervised</h2>
+      <p style="color:#6c757d;margin-bottom:20px;">Two fundamentally different approaches to machine learning — and different use cases in clinical AI.</p>
+
+      <div class="comparison-grid">
+        <div class="compare-card supervised">
+          <h3>🏷 Supervised Learning</h3>
+          <div class="compare-row"><div class="dot"></div><div>Requires labelled training data</div></div>
+          <div class="compare-row"><div class="dot"></div><div>Learns to predict specific known categories</div></div>
+          <div class="compare-row"><div class="dot"></div><div>Output is a label or value a human defined</div></div>
+          <div class="compare-row"><div class="dot"></div><div>Performance measurable against ground truth</div></div>
+          <div class="compare-row"><div class="dot"></div><div style="font-style:italic;color:#7c3aed">e.g. Diabetic retinopathy detection, sepsis prediction</div></div>
+        </div>
+        <div class="compare-card unsupervised">
+          <h3>🔍 Unsupervised Learning</h3>
+          <div class="compare-row"><div class="dot"></div><div>No labels needed — uses raw data</div></div>
+          <div class="compare-row"><div class="dot"></div><div>Discovers structure the human didn't pre-define</div></div>
+          <div class="compare-row"><div class="dot"></div><div>Output is groups or patterns — needs interpretation</div></div>
+          <div class="compare-row"><div class="dot"></div><div>Harder to validate — no 'correct answer'</div></div>
+          <div class="compare-row"><div class="dot"></div><div style="font-style:italic;color:#0369a1">e.g. Patient phenotyping, genomic clustering, anomaly detection</div></div>
+        </div>
+      </div>
+
+      <div class="clinical-box">
+        <h4>🏥 Why does this matter for you?</h4>
+        When you encounter a clinical AI tool, one of the most important questions is: <em>how was it trained?</em> A supervised model trained on labelled scans from one hospital may not generalise to your patient population. An unsupervised model grouping patients may have found clusters that have no clinical meaning — or that reflect data collection biases rather than disease. Knowing the difference between supervised and unsupervised learning helps you ask better questions of the people deploying these tools.
+      </div>
+
+      <div class="vocab-grid">
+        <div class="vocab-item"><strong>Training data</strong>Labelled examples used to teach a supervised model</div>
+        <div class="vocab-item"><strong>Clustering</strong>Unsupervised grouping of similar data points</div>
+        <div class="vocab-item"><strong>Label / annotation</strong>A human-assigned category applied to training data</div>
+        <div class="vocab-item"><strong>Generalisation</strong>How well a model performs on data it hasn't seen before</div>
+        <div class="vocab-item"><strong>Ground truth</strong>The verified correct answer used to train or evaluate a model</div>
+        <div class="vocab-item"><strong>Feature</strong>A measurable property the algorithm uses to distinguish categories</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="resetAll()">↩ Start again</button>
+        <button class="btn btn-secondary" onclick="showScreen('screen-intro')">📖 Re-read the intro</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════
+// ANIMAL SVG DRAWING
+// ═══════════════════════════
+function svgCat(col, size=80) {
+  const c=col, s=size, h=s/2;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <!-- body -->
+    <ellipse cx="40" cy="60" rx="24" ry="16" fill="${c}"/>
+    <!-- head -->
+    <circle cx="40" cy="34" r="19" fill="${c}"/>
+    <!-- ears -->
+    <polygon points="24,20 18,5 34,18" fill="${c}"/>
+    <polygon points="56,20 62,5 46,18" fill="${c}"/>
+    <polygon points="26,19 21,9 33,18" fill="#fbb4b4"/>
+    <polygon points="54,19 59,9 47,18" fill="#fbb4b4"/>
+    <!-- eyes -->
+    <ellipse cx="33" cy="32" rx="4" ry="4.5" fill="#1a1a2e"/>
+    <ellipse cx="47" cy="32" rx="4" ry="4.5" fill="#1a1a2e"/>
+    <circle cx="34" cy="31" r="1.5" fill="white"/>
+    <circle cx="48" cy="31" r="1.5" fill="white"/>
+    <!-- nose -->
+    <polygon points="40,38 37,41 43,41" fill="#e88"/>
+    <!-- whiskers -->
+    <line x1="40" y1="40" x2="18" y2="38" stroke="#bbb" stroke-width="1"/>
+    <line x1="40" y1="40" x2="18" y2="42" stroke="#bbb" stroke-width="1"/>
+    <line x1="40" y1="40" x2="62" y2="38" stroke="#bbb" stroke-width="1"/>
+    <line x1="40" y1="40" x2="62" y2="42" stroke="#bbb" stroke-width="1"/>
+    <!-- tail -->
+    <path d="M64,60 Q78,50 75,38 Q72,28 68,33" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function svgDog(col, size=80) {
+  const c=col;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <!-- body -->
+    <ellipse cx="40" cy="60" rx="24" ry="16" fill="${c}"/>
+    <!-- floppy ears -->
+    <ellipse cx="22" cy="32" rx="9" ry="14" fill="${c}" opacity="0.85" transform="rotate(-15,22,32)"/>
+    <ellipse cx="58" cy="32" rx="9" ry="14" fill="${c}" opacity="0.85" transform="rotate(15,58,32)"/>
+    <!-- head -->
+    <circle cx="40" cy="32" r="18" fill="${c}"/>
+    <!-- snout -->
+    <ellipse cx="40" cy="41" rx="10" ry="7" fill="#e8c98a"/>
+    <!-- eyes -->
+    <circle cx="33" cy="28" r="4" fill="#1a1a2e"/>
+    <circle cx="47" cy="28" r="4" fill="#1a1a2e"/>
+    <circle cx="34" cy="27" r="1.5" fill="white"/>
+    <circle cx="48" cy="27" r="1.5" fill="white"/>
+    <!-- nose -->
+    <ellipse cx="40" cy="38" rx="4" ry="3" fill="#111"/>
+    <!-- mouth -->
+    <path d="M37,43 Q40,46 43,43" stroke="#555" stroke-width="1.5" fill="none"/>
+    <!-- tail -->
+    <path d="M64,56 Q76,46 72,38" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function svgBird(col, size=80) {
+  const c=col;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <!-- body -->
+    <ellipse cx="40" cy="56" rx="20" ry="16" fill="${c}"/>
+    <!-- wing -->
+    <ellipse cx="55" cy="56" rx="14" ry="9" fill="${c}" opacity="0.75" transform="rotate(20,55,56)"/>
+    <!-- head -->
+    <circle cx="38" cy="34" r="15" fill="${c}"/>
+    <!-- beak -->
+    <polygon points="52,33 62,36 52,39" fill="#f59e0b"/>
+    <!-- eye -->
+    <circle cx="44" cy="32" r="4.5" fill="white"/>
+    <circle cx="45" cy="32" r="2.5" fill="#111"/>
+    <circle cx="45.5" cy="31" r="1" fill="white"/>
+    <!-- legs -->
+    <line x1="35" y1="72" x2="30" y2="80" stroke="#888" stroke-width="2"/>
+    <line x1="45" y1="72" x2="50" y2="80" stroke="#888" stroke-width="2"/>
+    <line x1="30" y1="80" x2="24" y2="80" stroke="#888" stroke-width="2"/>
+    <line x1="50" y1="80" x2="56" y2="80" stroke="#888" stroke-width="2"/>
+    <!-- crest -->
+    <path d="M34,20 Q30,12 36,10 Q34,16 40,18" fill="${c}"/>
+  </svg>`;
+}
+
+function getAnimalSvg(type, color, size=80) {
+  if (type==='cat')  return svgCat(color, size);
+  if (type==='dog')  return svgDog(color, size);
+  if (type==='bird') return svgBird(color, size);
+  return '';
+}
+
+// ═══════════════════════════
+// DATA
+// ═══════════════════════════
+const TRAINING = [
+  { id:1,  type:'cat',  color:'#e8834a', label:null },
+  { id:2,  type:'dog',  color:'#8B6332', label:null },
+  { id:3,  type:'bird', color:'#4a90e8', label:null },
+  { id:4,  type:'cat',  color:'#9e9e9e', label:null },
+  { id:5,  type:'dog',  color:'#c4873c', label:null },
+  { id:6,  type:'bird', color:'#27ae60', label:null },
+  { id:7,  type:'cat',  color:'#cc9966', label:null },
+  { id:8,  type:'dog',  color:'#555',    label:null },
+];
+
+// Visual properties only — predictions computed from user's labels at runtime
+const TEST_ANIMALS_BASE = [
+  { id:9,  type:'cat',  color:'#e67e22' },
+  { id:10, type:'dog',  color:'#a07850' },
+  { id:11, type:'bird', color:'#e74c3c' },
+  { id:12, type:'dog',  color:'#b0956e' }, // visually ambiguous — looks a bit like a cat
+];
+
+let activeTestCases = []; // filled by computeTestPredictions() before test screen
+
+function computeTestPredictions() {
+  // For each true animal type, find the majority label the user assigned
+  const typeVotes = {};
+  ['cat','dog','bird'].forEach(type => {
+    const examples = TRAINING.filter(a => a.type === type);
+    const counts = {};
+    examples.forEach(a => { counts[a.label] = (counts[a.label] || 0) + 1; });
+    const majority = Object.keys(counts).sort((a,b) => counts[b]-counts[a])[0];
+    const majorityCount = counts[majority];
+    const total = examples.length;
+    // Confidence: unanimous = ~93%, split = lower
+    const conf = Math.round((majorityCount / total) * 82 + 11);
+    typeVotes[type] = { label: majority, conf, unanimous: majorityCount === total };
+  });
+
+  return TEST_ANIMALS_BASE.map(a => {
+    if (a.id === 12) {
+      // Animal #12 is a dog that looks like a cat.
+      // If dogs were correctly identified, algorithm still wobbles on it (teaching point).
+      if (typeVotes['dog'].label === 'dog') {
+        return { ...a, guess:'cat', conf:61, correct:false,
+          note:`This dog has an unusually round face — the algorithm was uncertain and guessed wrong despite good training data.` };
+      }
+      // If user mislabelled dogs, algorithm confidently predicts the wrong label
+      const g = typeVotes['dog'].label;
+      const gIcon = LABELS.find(l=>l.key===g).icon;
+      return { ...a, guess:g, conf:typeVotes['dog'].conf, correct:false,
+        note:`Your training labelled dogs as "${g}" — so the algorithm predicted ${gIcon} ${g} here. This is actually a dog.` };
+    }
+
+    const { label, conf } = typeVotes[a.type];
+    const correct = label === a.type;
+    const trueIcon = LABELS.find(l=>l.key===a.type).icon;
+    const note = correct
+      ? `Correct. Your training labels for ${a.type}s were ${typeVotes[a.type].unanimous ? 'unanimous' : 'mostly consistent'}.`
+      : `Your training labelled ${a.type}s as "${label}" — so the algorithm predicted that here instead. This is actually a ${trueIcon} ${a.type}.`;
+    return { ...a, guess:label, conf, correct, note };
+  });
+}
+
+const LABELS = [
+  { key:'cat',  icon:'🐱', label:'Cat'  },
+  { key:'dog',  icon:'🐶', label:'Dog'  },
+  { key:'bird', icon:'🐦', label:'Bird' },
+];
+
+// Cluster layout: [type, startLeft%, startTop%, endLeft%, endTop%]
+const CLUSTER_ANIMALS = [
+  ['cat',  12, 28, 14, 22], ['cat',  35, 62, 18, 34],
+  ['cat',  68, 18, 12, 44], ['cat',  52, 75, 20, 56],
+  ['dog',  22, 48, 54, 66], ['dog',  80, 68, 62, 56],
+  ['dog',  60, 40, 58, 72], ['dog',  42, 14, 66, 64],
+  ['bird', 88, 22, 82, 18], ['bird', 74, 52, 88, 30],
+  ['bird', 28, 82, 22, 48], ['bird', 90, 85, 84, 52],
+];
+
+// ═══════════════════════════
+// STATE
+// ═══════════════════════════
+let labelsGiven = 0;
+let clusteringDone = false;
+
+// ═══════════════════════════
+// SCREENS
+// ═══════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function resetAll() {
+  TRAINING.forEach(a => a.label = null);
+  labelsGiven = 0;
+  clusteringDone = false;
+  showScreen('screen-intro');
+}
+
+// ═══════════════════════════
+// LABELLING
+// ═══════════════════════════
+function buildTrainingGrid() {
+  const grid = document.getElementById('training-grid');
+  grid.innerHTML = TRAINING.map(a => `
+    <div class="animal-card" id="acard-${a.id}">
+      ${getAnimalSvg(a.type, a.color, 72)}
+      <div class="animal-id">Animal #${a.id}</div>
+      <div class="label-buttons">
+        ${LABELS.map(l => `
+          <button class="lbl-btn" id="lbl-${a.id}-${l.key}" onclick="setLabel(${a.id},'${l.key}')">
+            ${l.icon} ${l.label}
+          </button>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function setLabel(animalId, labelKey) {
+  const a = TRAINING.find(x => x.id === animalId);
+  const wasLabelled = a.label !== null;
+  a.label = labelKey;
+
+  // Update button styles
+  LABELS.forEach(l => {
+    const btn = document.getElementById(`lbl-${animalId}-${l.key}`);
+    btn.className = 'lbl-btn' + (l.key === labelKey ? ' selected' : '');
+  });
+  document.getElementById(`acard-${animalId}`).className = 'animal-card labelled';
+
+  if (!wasLabelled) {
+    labelsGiven++;
+    const pct = (labelsGiven / 8) * 100;
+    document.getElementById('label-progress-fill').style.width = pct + '%';
+    document.getElementById('label-progress-text').textContent = `${labelsGiven} / 8 labelled`;
+  }
+
+  if (labelsGiven === 8) {
+    document.getElementById('btn-train').disabled = false;
+  }
+}
+
+// ═══════════════════════════
+// TRAINING ANIMATION
+// ═══════════════════════════
+function startTraining() {
+  showScreen('screen-training');
+  const bar = document.getElementById('train-bar-fill');
+  const status = document.getElementById('train-status');
+  const steps = [
+    [10, 'Extracting features from labelled examples…'],
+    [35, 'Identifying distinguishing patterns…'],
+    [60, 'Adjusting internal model weights…'],
+    [80, 'Validating against held-out examples…'],
+    [95, 'Optimising decision boundaries…'],
+    [100, 'Training complete! ✓'],
+  ];
+  let i = 0;
+  function step() {
+    if (i >= steps.length) {
+      setTimeout(buildTestScreen, 600);
+      return;
+    }
+    const [pct, msg] = steps[i++];
+    bar.style.width = pct + '%';
+    status.textContent = msg;
+    setTimeout(step, i < steps.length ? 480 : 900);
+  }
+  setTimeout(step, 300);
+}
+
+// ═══════════════════════════
+// TEST CLASSIFICATION
+// ═══════════════════════════
+function buildTestScreen() {
+  activeTestCases = computeTestPredictions();
+  const queue = document.getElementById('test-queue');
+  queue.innerHTML = activeTestCases.map(t => `
+    <div class="test-card" id="tcard-${t.id}">
+      <div class="test-animal-svg">${getAnimalSvg(t.type, t.color, 70)}</div>
+      <div class="test-details">
+        <div class="test-id">Test animal #${t.id}</div>
+        <div class="test-thinking" id="think-${t.id}">Waiting…</div>
+        <div class="test-result" id="result-${t.id}">
+          <div class="test-label ${t.correct ? 'correct' : 'wrong'}" id="tlabel-${t.id}"></div>
+          <div class="confidence-bar">
+            <div class="confidence-fill ${t.conf >= 75 ? 'high' : 'medium'}" id="conf-fill-${t.id}"></div>
+          </div>
+          <div class="confidence-note" id="conf-note-${t.id}"></div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  showScreen('screen-test');
+  classifyNext(0);
+}
+
+function classifyNext(i) {
+  if (i >= activeTestCases.length) {
+    document.getElementById('btn-next-sup').disabled = false;
+    return;
+  }
+  const t = activeTestCases[i];
+  const card = document.getElementById(`tcard-${t.id}`);
+  const think = document.getElementById(`think-${t.id}`);
+  const result = document.getElementById(`result-${t.id}`);
+
+  card.className = 'test-card active';
+  think.textContent = 'Analysing…';
+
+  setTimeout(() => { think.textContent = 'Comparing to training examples…'; }, 500);
+
+  setTimeout(() => {
+    think.style.display = 'none';
+    result.className = 'test-result show';
+    const lbl = document.getElementById(`tlabel-${t.id}`);
+    const guessLabel = LABELS.find(l => l.key === t.guess);
+    lbl.className = `test-label ${t.correct ? 'correct' : 'wrong'}`;
+    lbl.textContent = t.correct
+      ? `✓ ${guessLabel.icon} ${guessLabel.label} — ${t.conf}% confidence`
+      : `✗ ${guessLabel.icon} ${guessLabel.label} — ${t.conf}% confidence (incorrect)`;
+
+    setTimeout(() => {
+      document.getElementById(`conf-fill-${t.id}`).style.width = t.conf + '%';
+      document.getElementById(`conf-note-${t.id}`).textContent = t.note;
+    }, 100);
+
+    card.className = 'test-card done';
+    setTimeout(() => classifyNext(i + 1), 1200);
+  }, 1500);
+}
+
+function showSupDebrief() {
+  const correctCount = activeTestCases.filter(t => t.correct).length;
+  const labelErrors = activeTestCases.filter(t => !t.correct && t.id !== 12).length;
+
+  // Update debrief insight boxes based on label quality
+  const rightBox  = document.getElementById('debrief-right-box');
+  const wrongBox  = document.getElementById('debrief-wrong-box');
+
+  if (correctCount === 3) {
+    // Normal result — 3 right, #12 wrong due to model ambiguity
+    rightBox.innerHTML = '<h4>✅ What went right</h4>Three of the four test animals were classified correctly with high confidence. The algorithm generalised successfully from your 8 labelled examples.';
+    wrongBox.innerHTML = '<h4>⚠️ What went wrong</h4>Animal #12 was misclassified — it\'s a dog with an unusually round face, and the algorithm labelled it as a cat. This happens even with good training data when test cases are ambiguous.';
+  } else if (correctCount === 4) {
+    rightBox.innerHTML = '<h4>✅ Perfect result</h4>All four test animals were classified correctly. Your labels were clear and consistent — the algorithm had everything it needed to generalise accurately.';
+    wrongBox.innerHTML = '<h4>💡 Notice</h4>Even animal #12 was classified correctly — your labels were so consistent the algorithm had high confidence on all cases.';
+    wrongBox.className = 'insight-box purple';
+  } else {
+    // Poor labels — multiple errors
+    rightBox.innerHTML = `<h4>⚠️ What happened</h4>Only ${correctCount} of 4 test animals were classified correctly. Look at the notes under each result — they show how your training labels directly caused the errors.`;
+    rightBox.className = 'insight-box red';
+    wrongBox.innerHTML = '<h4>🔑 The lesson</h4>This is "garbage in, garbage out." If training labels are wrong or inconsistent, the algorithm learns the wrong patterns — and applies them with high confidence to new data. In clinical AI, poor labelling of training data is a major source of model failure.';
+    wrongBox.className = 'insight-box purple';
+  }
+
+  showScreen('screen-sup-debrief');
+}
+
+// ═══════════════════════════
+// UNSUPERVISED CLUSTERING
+// ═══════════════════════════
+function showUnsupervised() {
+  buildClusterCanvas();
+  showScreen('screen-unsup');
+}
+
+function buildClusterCanvas() {
+  const canvas = document.getElementById('cluster-canvas');
+  canvas.innerHTML = '';
+  CLUSTER_ANIMALS.forEach(([type, sx, sy], i) => {
+    const dot = document.createElement('div');
+    dot.className = 'cluster-dot';
+    dot.id = `dot-${i}`;
+    dot.style.left = sx + '%';
+    dot.style.top = sy + '%';
+    dot.textContent = type === 'cat' ? '🐱' : type === 'dog' ? '🐶' : '🐦';
+    dot.style.background = type === 'cat' ? 'rgba(245,158,11,0.15)' : type === 'dog' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)';
+    canvas.appendChild(dot);
+  });
+
+  // cluster rings (hidden until animation)
+  const rings = [
+    { id:'ring-cats',  cls:'cats',  cx:'17%', cy:'38%', w:'190px', h:'200px', lx:'17%', ly:'12%' },
+    { id:'ring-dogs',  cls:'dogs',  cx:'60%', cy:'65%', w:'170px', h:'120px', lx:'60%', ly:'84%' },
+    { id:'ring-birds', cls:'birds', cx:'84%', cy:'34%', w:'120px', h:'130px', lx:'84%', ly:'14%' },
+  ];
+  rings.forEach(r => {
+    const ring = document.createElement('div');
+    ring.id = r.id;
+    ring.className = `cluster-ring ${r.cls}`;
+    ring.style.left = r.cx; ring.style.top = r.cy;
+    ring.style.width = r.w; ring.style.height = r.h;
+    canvas.appendChild(ring);
+
+    const lbl = document.createElement('div');
+    lbl.id = `lbl-${r.cls}`;
+    lbl.className = `cluster-label ${r.cls}`;
+    lbl.style.left = r.lx; lbl.style.top = r.ly;
+    const names = { cats:'Group A', dogs:'Group B', birds:'Group C' };
+    lbl.textContent = names[r.cls];
+    canvas.appendChild(lbl);
+  });
+}
+
+function runClustering() {
+  if (clusteringDone) return;
+  clusteringDone = true;
+  document.getElementById('btn-cluster').disabled = true;
+  document.getElementById('cluster-step').textContent = 'Finding patterns… clustering similar animals together';
+
+  // Move dots to cluster positions
+  CLUSTER_ANIMALS.forEach(([type, sx, sy, ex, ey], i) => {
+    const dot = document.getElementById(`dot-${i}`);
+    setTimeout(() => {
+      dot.style.left = ex + '%';
+      dot.style.top = ey + '%';
+    }, i * 80 + 200);
+  });
+
+  // Show rings and labels after dots settle
+  setTimeout(() => {
+    ['ring-cats','ring-dogs','ring-birds'].forEach(id => {
+      document.getElementById(id).className += ' show';
+    });
+    ['lbl-cats','lbl-dogs','lbl-birds'].forEach(id => {
+      document.getElementById(id).className += ' show';
+    });
+    document.getElementById('cluster-step').textContent = '3 groups found — the algorithm named them A, B and C';
+    setTimeout(() => {
+      document.getElementById('unsup-reveal').className = 'unsup-reveal show';
+    }, 600);
+  }, 2600);
+}
+
+function showFinalDebrief() {
+  showScreen('screen-debrief');
+}
+
+// ═══════════════════════════
+// INIT
+// ═══════════════════════════
+buildTrainingGrid();
+</script>
+</body>
+</html>
