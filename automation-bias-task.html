@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Automation Bias — Clinical AI Task</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .screen { display: none; width: 100%; max-width: 720px; animation: fadeIn 0.3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── SHARED ── */
+  .card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .btn {
+    border: none; border-radius: 8px; padding: 14px 28px;
+    font-size: 1rem; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; display: inline-block;
+  }
+  .btn-primary { background: #005EB8; color: white; }
+  .btn-primary:hover { background: #003F8A; transform: translateY(-1px); }
+  .btn-secondary { background: #f8f9fa; color: #495057; border: 2px solid #dee2e6; }
+  .btn-secondary:hover { background: #e9ecef; }
+
+  /* ── INTRO ── */
+  #screen-intro .card { padding: 40px; text-align: center; }
+  .nhs-logo {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #005EB8; color: white;
+    padding: 8px 16px; border-radius: 6px;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;
+    margin-bottom: 24px;
+  }
+  #screen-intro h1 { font-size: 1.9rem; color: #212529; margin-bottom: 8px; }
+  #screen-intro .subtitle { color: #6c757d; font-size: 1.05rem; margin-bottom: 28px; }
+  .briefing-box {
+    background: #f8f9fa; border-left: 4px solid #005EB8;
+    border-radius: 0 8px 8px 0; padding: 18px 20px;
+    text-align: left; margin: 20px 0; font-size: 0.95rem; line-height: 1.7;
+  }
+  .briefing-box strong { color: #005EB8; }
+  .rules-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; margin: 20px 0;
+  }
+  .rule-cell {
+    background: #f8f9fa; border-radius: 8px;
+    padding: 14px 12px; text-align: center; font-size: 0.88rem;
+  }
+  .rule-cell .icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .rule-cell strong { display: block; margin-bottom: 4px; }
+
+  /* ── CASE SCREEN ── */
+  .case-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    background: #003087; color: white;
+    font-size: 0.88rem;
+  }
+  .case-counter { font-weight: 600; }
+  .timer-wrap { display: flex; align-items: center; gap: 10px; }
+  .timer-num {
+    font-size: 1.3rem; font-weight: 700; min-width: 46px; text-align: right;
+    transition: color 0.3s;
+  }
+  .timer-num.urgent { color: #ff6b6b; }
+  .timer-bar-outer {
+    width: 140px; height: 6px; background: rgba(255,255,255,0.3);
+    border-radius: 3px; overflow: hidden;
+  }
+  .timer-bar-fill {
+    height: 100%; background: white; border-radius: 3px;
+    transition: width 1s linear, background 0.5s;
+  }
+  .timer-bar-fill.urgent { background: #ff6b6b; }
+
+  .patient-bar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 20px; background: #e8f0fe; font-size: 0.88rem; color: #003087;
+    border-bottom: 1px solid #c5d5f5;
+  }
+  .patient-bar .tag {
+    background: #005EB8; color: white;
+    padding: 3px 10px; border-radius: 4px; font-weight: 600; font-size: 0.82rem;
+  }
+
+  .case-body { padding: 20px; }
+  .case-body h3 {
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #888; margin-bottom: 8px; margin-top: 16px;
+  }
+  .case-body h3:first-child { margin-top: 0; }
+  .presenting-complaint {
+    font-size: 1.05rem; font-weight: 600; color: #212529; margin-bottom: 4px;
+  }
+  .findings-list { list-style: none; padding: 0; }
+  .findings-list li {
+    padding: 5px 0 5px 20px; position: relative; font-size: 0.93rem;
+    color: #343a40; line-height: 1.5; border-bottom: 1px solid #f8f9fa;
+  }
+  .findings-list li::before {
+    content: '▸'; position: absolute; left: 0; color: #005EB8;
+  }
+
+  /* AI Panel — made to look authoritative */
+  .ai-panel {
+    margin: 16px 20px 0;
+    border: 2px solid #003087; border-radius: 10px; overflow: hidden;
+  }
+  .ai-panel-header {
+    background: #003087; color: white;
+    padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.5px;
+  }
+  .ai-panel-header .ai-logo {
+    background: white; color: #003087;
+    padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;
+  }
+  .ai-badge {
+    display: inline-block; padding: 4px 12px; border-radius: 4px;
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .badge-low    { background: #d4edda; color: #155724; }
+  .badge-mod    { background: #fff3cd; color: #856404; }
+  .badge-action { background: #cce5ff; color: #004085; }
+  .badge-urgent { background: #f8d7da; color: #721c24; }
+  .badge-no-ab  { background: #d4edda; color: #155724; }
+  .badge-benign { background: #d4edda; color: #155724; }
+  .badge-treat  { background: #cce5ff; color: #004085; }
+  .badge-minor  { background: #e2e3e5; color: #383d41; }
+  .badge-routine { background: #d4edda; color: #155724; }
+
+  .ai-panel-body { padding: 14px 16px; }
+  .ai-rec-title { font-size: 1rem; font-weight: 700; color: #003087; margin-bottom: 6px; }
+  .ai-rec-detail { font-size: 0.88rem; color: #343a40; line-height: 1.6; }
+  .ai-panel-footer {
+    background: #f0f4f8; padding: 6px 16px;
+    font-size: 0.72rem; color: #6c757d;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* Action buttons */
+  .action-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    padding: 16px 20px 20px;
+  }
+  .action-case-btn {
+    border-radius: 10px; padding: 14px 12px; font-size: 0.95rem;
+    font-weight: 600; cursor: pointer; border: 3px solid; transition: all 0.15s;
+    text-align: center; line-height: 1.4;
+  }
+  .action-case-btn.accept {
+    border-color: #005EB8; color: #005EB8; background: white;
+  }
+  .action-case-btn.accept:hover { background: #005EB8; color: white; }
+  .action-case-btn.override {
+    border-color: #e67e22; color: #e67e22; background: white;
+  }
+  .action-case-btn.override:hover { background: #e67e22; color: white; }
+  .action-case-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Timeout flash */
+  .timeout-flash {
+    display: none; background: #fff3cd; color: #856404;
+    padding: 10px 20px; text-align: center; font-size: 0.88rem; font-weight: 600;
+  }
+  .timeout-flash.show { display: block; }
+
+  /* ── DEBRIEF ── */
+  #screen-debrief { padding-bottom: 40px; }
+  .debrief-header {
+    background: #003087; color: white;
+    border-radius: 12px 12px 0 0; padding: 28px 28px 20px;
+    text-align: center;
+  }
+  .debrief-header h2 { font-size: 1.8rem; margin-bottom: 6px; }
+  .debrief-header p { opacity: 0.85; font-size: 1rem; }
+
+  .bias-score-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+    background: #002060;
+  }
+  .bias-cell {
+    padding: 16px; text-align: center; color: white;
+    border-right: 1px solid rgba(255,255,255,0.15);
+  }
+  .bias-cell:last-child { border-right: none; }
+  .bias-cell .big { font-size: 2.2rem; font-weight: 700; display: block; }
+  .bias-cell .lbl { font-size: 0.78rem; opacity: 0.8; margin-top: 2px; }
+  .bias-cell.danger .big { color: #ff6b6b; }
+  .bias-cell.good .big { color: #69db7c; }
+
+  .debrief-section { padding: 20px 24px; border-bottom: 1px solid #f0f0f0; }
+  .debrief-section h3 {
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #888; margin-bottom: 14px;
+  }
+
+  /* Decision timeline */
+  .timeline {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+  }
+  .timeline-cell {
+    border-radius: 8px; padding: 10px 8px; text-align: center; font-size: 0.8rem;
+    border: 2px solid transparent;
+  }
+  .timeline-cell .case-num { font-weight: 700; font-size: 1rem; display: block; margin-bottom: 4px; }
+  .timeline-cell .cell-label { font-size: 0.72rem; line-height: 1.3; }
+  .timeline-cell.correct-accept { background: #f0f4f8; border-color: #dee2e6; color: #6c757d; }
+  .timeline-cell.caught-trap   { background: #d4edda; border-color: #28a745; color: #155724; }
+  .timeline-cell.missed-trap   { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+  .timeline-cell.timeout       { background: #fff3cd; border-color: #ffc107; color: #856404; }
+
+  /* Trap reveals */
+  .trap-card {
+    border: 2px solid #dc3545; border-radius: 10px;
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .trap-card.caught { border-color: #28a745; }
+  .trap-header {
+    display: flex; align-items: center; gap: 10px;
+    background: #dc3545; color: white; padding: 10px 16px;
+    font-size: 0.88rem; font-weight: 600;
+  }
+  .trap-card.caught .trap-header { background: #28a745; }
+  .trap-body { padding: 14px 16px; }
+  .trap-patient { font-weight: 600; color: #343a40; margin-bottom: 6px; font-size: 0.95rem; }
+  .trap-ai-said {
+    background: #f8f9fa; border-left: 3px solid #dc3545;
+    padding: 8px 12px; border-radius: 0 6px 6px 0;
+    font-size: 0.85rem; color: #495057; margin-bottom: 10px;
+    font-style: italic;
+  }
+  .trap-card.caught .trap-ai-said { border-color: #28a745; }
+  .trap-explanation {
+    font-size: 0.9rem; line-height: 1.65; color: #343a40;
+  }
+  .trap-explanation strong { color: #dc3545; }
+  .trap-card.caught .trap-explanation strong { color: #28a745; }
+
+  /* Reflection box */
+  .reflection-box {
+    background: #fff8e7; border: 2px solid #ffc107;
+    border-radius: 10px; padding: 18px 20px;
+  }
+  .reflection-box h4 { color: #856404; margin-bottom: 12px; font-size: 0.95rem; }
+  .reflection-box ol { padding-left: 20px; }
+  .reflection-box li { margin-bottom: 10px; font-size: 0.9rem; line-height: 1.6; color: #495057; }
+
+  /* Stat box */
+  .cohort-stat {
+    background: #e8f0fe; border-radius: 10px;
+    padding: 16px 20px; margin: 16px 0;
+    font-size: 0.9rem; line-height: 1.65; color: #003087;
+  }
+  .cohort-stat strong { font-size: 1.1rem; }
+
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+
+  @media (max-width: 500px) {
+    .rules-grid { grid-template-columns: 1fr; }
+    .action-row { grid-template-columns: 1fr; }
+    .timeline { grid-template-columns: repeat(5, 1fr); }
+    .bias-score-row { grid-template-columns: 1fr; }
+    body { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ INTRO ═══════════════════ -->
+<div id="screen-intro" class="screen active">
+  <div class="card">
+    <div style="padding:40px;">
+      <div class="nhs-logo">⚕️ &nbsp;NHS CLINICAL AI EDUCATION</div>
+      <h1>The Morning Handover</h1>
+      <p class="subtitle">A clinical AI task about judgment, trust, and automation bias</p>
+
+      <div class="briefing-box">
+        <strong>The scenario:</strong> You're starting your shift. An AI clinical decision support system has pre-reviewed 10 patients and generated recommendations. Your job is to review each case and decide whether to <strong>accept the AI's recommendation</strong> or <strong>override it</strong>.<br><br>
+        The AI is usually reliable. But not always.
+      </div>
+
+      <div class="rules-grid">
+        <div class="rule-cell">
+          <div class="icon">📋</div>
+          <strong>10 cases</strong>
+          Read the clinical details and AI recommendation
+        </div>
+        <div class="rule-cell">
+          <div class="icon">⏱️</div>
+          <strong>25 seconds</strong>
+          Per case — time pressure mirrors real practice
+        </div>
+        <div class="rule-cell">
+          <div class="icon">🔕</div>
+          <strong>No feedback</strong>
+          You won't know if you're right until the end
+        </div>
+      </div>
+
+      <p style="font-size:0.88rem; color:#888; margin: 16px 0 24px; text-align:center;">
+        There are no trick questions — but there are a small number of cases where the AI is dangerously wrong.
+      </p>
+
+      <button class="btn btn-primary" onclick="startGame()" style="width:100%; padding:16px; font-size:1.05rem;">
+        Start the handover →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ CASE SCREEN ═══════════════════ -->
+<div id="screen-case" class="screen">
+  <div class="card" id="case-card">
+
+    <div class="case-topbar">
+      <span class="case-counter" id="case-counter">Case 1 of 10</span>
+      <div class="timer-wrap">
+        <div class="timer-bar-outer">
+          <div class="timer-bar-fill" id="timer-bar-fill"></div>
+        </div>
+        <div class="timer-num" id="timer-num">0:25</div>
+      </div>
+    </div>
+
+    <div class="patient-bar" id="patient-bar">
+      <!-- filled dynamically -->
+    </div>
+
+    <div class="case-body">
+      <h3>Presenting Complaint</h3>
+      <div class="presenting-complaint" id="presenting-complaint"></div>
+
+      <h3 style="margin-top:16px;">Key Findings</h3>
+      <ul class="findings-list" id="findings-list"></ul>
+    </div>
+
+    <div class="ai-panel">
+      <div class="ai-panel-header">
+        <span class="ai-logo">AI</span>
+        NHS CLINICAL DECISION SUPPORT SYSTEM
+        <span style="margin-left:auto; opacity:0.7; font-weight:400;">Real-time analysis</span>
+      </div>
+      <div class="ai-panel-body">
+        <span class="ai-badge" id="ai-badge"></span>
+        <div class="ai-rec-title" id="ai-rec-title"></div>
+        <div class="ai-rec-detail" id="ai-rec-detail"></div>
+      </div>
+      <div class="ai-panel-footer">
+        🔒 NHS Clinical AI v3.2 &nbsp;·&nbsp; Validated against NICE guidelines &nbsp;·&nbsp; Confidence: <span id="ai-confidence">High</span>
+      </div>
+    </div>
+
+    <div class="timeout-flash" id="timeout-flash">
+      ⏱ Time expired — no action recorded for this case
+    </div>
+
+    <div class="action-row">
+      <button class="action-case-btn accept" id="btn-accept" onclick="handleDecision('accept')">
+        ✓ Accept Recommendation
+      </button>
+      <button class="action-case-btn override" id="btn-override" onclick="handleDecision('override')">
+        ✗ Override AI
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════ DEBRIEF ═══════════════════ -->
+<div id="screen-debrief" class="screen">
+  <div class="card" style="border-radius:12px; overflow:hidden; margin-bottom:16px;">
+    <div class="debrief-header">
+      <div style="font-size:2rem; margin-bottom:8px;">🏥</div>
+      <h2>End of Handover</h2>
+      <p id="debrief-headline">Here's how you responded to the AI</p>
+    </div>
+    <div class="bias-score-row">
+      <div class="bias-cell" id="cell-agreed">
+        <span class="big" id="num-agreed">0</span>
+        <span class="lbl">Cases accepted</span>
+      </div>
+      <div class="bias-cell" id="cell-overridden">
+        <span class="big" id="num-overridden">0</span>
+        <span class="lbl">Cases overridden</span>
+      </div>
+      <div class="bias-cell" id="cell-traps">
+        <span class="big" id="num-traps-caught">0/3</span>
+        <span class="lbl">Critical errors caught</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+
+    <div class="debrief-section">
+      <h3>Your Decisions — All 10 Cases</h3>
+      <div class="timeline" id="timeline"></div>
+      <p style="font-size:0.78rem; color:#888; margin-top:10px;">
+        <span style="color:#28a745; font-weight:700;">■</span> Trap caught &nbsp;
+        <span style="color:#dc3545; font-weight:700;">■</span> Trap missed &nbsp;
+        <span style="color:#6c757d; font-weight:700;">■</span> Routine case &nbsp;
+        <span style="color:#ffc107; font-weight:700;">■</span> Timed out
+      </p>
+    </div>
+
+    <div class="debrief-section">
+      <h3>The Three Critical Cases</h3>
+      <div id="trap-reveals"></div>
+    </div>
+
+    <div class="debrief-section">
+      <h3>What Is Automation Bias?</h3>
+      <p style="font-size:0.93rem; line-height:1.7; color:#343a40; margin-bottom:14px;">
+        <strong>Automation bias</strong> is the tendency to over-rely on automated systems — to accept machine recommendations without adequate critical evaluation. In clinical settings, this means a clinician may accept an AI's output even when the clinical evidence in front of them tells a different story.
+      </p>
+      <p style="font-size:0.93rem; line-height:1.7; color:#343a40; margin-bottom:14px;">
+        It is not about distrust of AI. It is about maintaining the habit of <em>looking at the actual patient data</em> rather than the system's summary of it.
+      </p>
+      <div class="cohort-stat">
+        📊 In a 2024 study of 28 trained pathology experts using AI clinical decision support, overall diagnostic performance <em>improved</em> with AI assistance — but the same AI integration produced a <strong>7% automation bias rate</strong>, where clinicians overturned their own initially correct evaluations in response to erroneous AI advice.<br><br>
+        Crucially, time pressure did not increase <em>how often</em> automation bias occurred — but it did increase its <em>severity</em>, with greater reliance on the AI's incorrect outputs and a corresponding decline in performance.<br><br>
+        <em>Rosbach E, Ganz J, Ammeling J, Riener A, Aubreville M. Automation Bias in AI-Assisted Medical Decision-Making under Time Pressure in Computational Pathology. arXiv:2411.00998 [cs.HC]. 2024.</em>
+      </div>
+    </div>
+
+    <div class="debrief-section" style="border-bottom:none;">
+      <h3>Questions for Reflection</h3>
+      <div class="reflection-box">
+        <h4>💬 Take a moment to consider:</h4>
+        <ol>
+          <li>For each case, did you read the clinical findings first — or did you read the AI recommendation first? Does the order matter?</li>
+          <li>The AI panel is designed to look authoritative. Did its visual design influence you? What does that tell you about how AI should be presented in clinical systems?</li>
+          <li>In three of these cases, the AI was dangerously wrong. But it was right in seven. How do you maintain appropriate scepticism without dismissing the tool's genuine value?</li>
+          <li>If you accepted a dangerous recommendation: could time pressure alone explain it, or were there other factors?</li>
+        </ol>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="restartGame()">↩ Try Again</button>
+    <button class="btn btn-secondary" onclick="showIntro()">📖 Re-read the Briefing</button>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// CASE DATA
+// ═══════════════════════════════════════════
+const CASES = [
+  {
+    id: 1, isTrap: false,
+    setting: "GP Surgery", patient: "62F", time: "09:14",
+    presenting: "Dysuria and urinary frequency for 3 days",
+    findings: [
+      "Burning sensation on micturition, frequency every 30 minutes",
+      "No fever, no loin pain, no haematuria, no vaginal discharge",
+      "Urine dip: nitrites +, leucocytes ++. MSSU: E. coli >10⁵ CFU/mL, sensitive to trimethoprim"
+    ],
+    aiRec: {
+      badgeClass: "badge-action", badgeText: "TREATMENT RECOMMENDED",
+      title: "Uncomplicated Lower UTI",
+      detail: "Trimethoprim 200mg twice daily for 7 days per local antimicrobial guidelines. No further investigation required. Safety net: return if fever develops, loin pain, or symptoms worsen within 48 hours.",
+      confidence: "High"
+    },
+    correctAction: "accept"
+  },
+  {
+    id: 2, isTrap: true,
+    setting: "Emergency Department", patient: "54M", time: "09:41",
+    presenting: "Central chest pain — 45-minute history",
+    findings: [
+      "Pain 8/10, radiation to left arm, patient diaphoretic and pale",
+      "BP 138/88, HR 94, SpO₂ 97% on air, RR 18",
+      "ECG: new left bundle branch block (LBBB) — no previous ECG for comparison"
+    ],
+    aiRec: {
+      badgeClass: "badge-low", badgeText: "LOW RISK — OBSERVE",
+      title: "Troponin Negative at 0 Hours",
+      detail: "High-Sensitivity Troponin T: <14 ng/L (negative at presentation). HEART Score: 3 — LOW RISK. Recommended plan: repeat troponin at 3 hours. Discharge if second sample negative. Arrange routine cardiology outpatient review.",
+      confidence: "High"
+    },
+    correctAction: "override",
+    trapExplanation: "New LBBB in the context of acute chest pain is a <strong>STEMI equivalent</strong> under NICE and ESC guidelines and requires immediate cath lab activation — regardless of troponin result at presentation. Troponin rises over hours; a negative 0-hour sample does not rule out infarction. This patient needed an emergency PCI call, not a 3-hour observe-and-discharge plan. The AI focused on the troponin and failed to interpret the ECG finding in context."
+  },
+  {
+    id: 3, isTrap: false,
+    setting: "GP Surgery", patient: "34M", time: "10:02",
+    presenting: "Sore throat and nasal congestion for 2 days",
+    findings: [
+      "Low-grade pyrexia 37.6°C, rhinorrhoea, generalised malaise",
+      "Throat: mild erythema, no exudate, no tonsillar enlargement, no lymphadenopathy",
+      "FeverPAIN score: 1 — low risk for streptococcal infection"
+    ],
+    aiRec: {
+      badgeClass: "badge-no-ab", badgeText: "NO ANTIBIOTIC REQUIRED",
+      title: "Viral Upper Respiratory Tract Infection",
+      detail: "Presentation consistent with viral URTI. Antibiotics not indicated (FeverPAIN 1). Recommend: paracetamol and ibuprofen for symptom relief, adequate hydration. Safety net: return if no improvement by day 7 or if significantly worsening.",
+      confidence: "High"
+    },
+    correctAction: "accept"
+  },
+  {
+    id: 4, isTrap: true,
+    setting: "A&E (transferred from care home)", patient: "72M", time: "10:28",
+    presenting: "Confusion and reduced mobility — 2-day history",
+    findings: [
+      "T 39.4°C, HR 118 bpm, RR 22, BP 94/60 mmHg, SpO₂ 94% on air",
+      "GCS 13/15 (new confusion), lactate 2.8 mmol/L, WBC 18.4, CRP 287",
+      "No obvious source identified on initial assessment; urinalysis pending"
+    ],
+    aiRec: {
+      badgeClass: "badge-mod", badgeText: "MODERATE ALERT — SCORE 5",
+      title: "Clinical Deterioration Indicator",
+      detail: "Modified Early Warning Score: 5. Patient flagged for increased monitoring. Recommended actions: repeat observations in 2 hours, on-call medical review if no improvement. IV access not currently indicated by scoring system.",
+      confidence: "Medium"
+    },
+    correctAction: "override",
+    trapExplanation: "This patient meets <strong>Sepsis-3 criteria</strong>: suspected infection with organ dysfunction evidenced by new confusion, hypotension (BP 94/60), and elevated lactate (2.8 mmol/L &gt; 2.0). The Sepsis-6 bundle should be initiated immediately: blood cultures, IV antibiotics within one hour, fluid resuscitation, and urgent senior review. The AI's MEWS-based scoring significantly underestimated deterioration severity — lactate alone (≥2 mmol/L) warrants immediate escalation. 'Repeat observations in 2 hours' could be fatal."
+  },
+  {
+    id: 5, isTrap: false,
+    setting: "Surgical Ward — Day 2 post hip replacement", patient: "58F", time: "11:05",
+    presenting: "Left calf pain and swelling since this morning",
+    findings: [
+      "Unilateral left calf oedema, warmth and tenderness on palpation",
+      "No chest pain, no dyspnoea. SpO₂ 98% on air, HR 84, RR 14",
+      "Wells DVT Score: 3 — high probability. Immobility post-surgery noted."
+    ],
+    aiRec: {
+      badgeClass: "badge-action", badgeText: "URGENT ACTION REQUIRED",
+      title: "High DVT Probability",
+      detail: "Wells Score 3 — high probability of deep vein thrombosis. Initiate therapeutic LMWH (enoxaparin, weight-adjusted dosing) immediately pending imaging. Request urgent bilateral lower limb Doppler ultrasound. Do not delay anticoagulation for imaging result.",
+      confidence: "High"
+    },
+    correctAction: "accept"
+  },
+  {
+    id: 6, isTrap: false,
+    setting: "Emergency Department", patient: "28M, known T1DM", time: "11:33",
+    presenting: "Found unresponsive and trembling by partner at home",
+    findings: [
+      "Sweaty, pale, trembling, GCS 13/15 on arrival",
+      "BM: 2.4 mmol/L. Last insulin: Novorapid 6 units 45 minutes prior",
+      "No focal neurology, no head injury, no signs of DKA"
+    ],
+    aiRec: {
+      badgeClass: "badge-treat", badgeText: "URGENT TREATMENT REQUIRED",
+      title: "Symptomatic Hypoglycaemia Confirmed",
+      detail: "BM 2.4 mmol/L with symptomatic hypoglycaemia. If patient able to swallow: 150–200 mL Lucozade Original or equivalent (15–20g fast-acting glucose). Recheck BM at 10–15 minutes. If unable to swallow or no clinical improvement: IV dextrose 10% 150 mL or IM glucagon 1mg.",
+      confidence: "High"
+    },
+    correctAction: "accept"
+  },
+  {
+    id: 7, isTrap: true,
+    setting: "GP Surgery", patient: "47F", time: "12:10",
+    presenting: "Concerned about a changing mole on her upper back",
+    findings: [
+      "Asymmetric lesion, irregular and poorly-defined border, multiple colours (tan, brown, black)",
+      "Diameter 9mm. Slightly raised. Patient reports it has grown noticeably over 3 months",
+      "No lymphadenopathy. No family history of melanoma. Fitzpatrick skin type II."
+    ],
+    aiRec: {
+      badgeClass: "badge-routine", badgeText: "ROUTINE REVIEW",
+      title: "Pigmented Skin Lesion — Low Concern",
+      detail: "Dermoscopic analysis suggests low-grade pigmented lesion. 2-week wait referral criteria not currently met. Recommended plan: reassure patient, photograph lesion for baseline record, routine GP review in 3 months. Refer to dermatology if further change noted.",
+      confidence: "Medium"
+    },
+    correctAction: "override",
+    trapExplanation: "This lesion scores positively on <strong>all five ABCDE criteria</strong>: Asymmetry ✓, Border irregularity ✓, Colour variation ✓, Diameter &gt;6mm ✓, Evolution over 3 months ✓. Under NICE NG12 guidelines, this warrants an urgent 2-week wait referral for suspected melanoma. Delayed referral in melanoma dramatically worsens prognosis — 5-year survival drops from over 98% (stage I) to under 20% (stage IV). The AI's recommendation to 'reassure and review in 3 months' could be fatal."
+  },
+  {
+    id: 8, isTrap: false,
+    setting: "GP Surgery", patient: "45F", time: "13:15",
+    presenting: "Small lesion on left forearm — noticed 2 months ago",
+    findings: [
+      "Well-defined, symmetrical, pale-pink macule, 3mm diameter",
+      "Uniform colour, smooth regular border, completely flat, non-tender",
+      "No reported change in size or appearance. No associated symptoms."
+    ],
+    aiRec: {
+      badgeClass: "badge-benign", badgeText: "BENIGN — REASSURE",
+      title: "Likely Benign Epidermal Lesion",
+      detail: "Features consistent with benign epidermal lesion (sebaceous cyst / dermatofibroma variant). No criteria for 2-week wait referral are met. Recommend: reassure patient, advise return if changes occur in size, shape, colour or sensation.",
+      confidence: "High"
+    },
+    correctAction: "accept"
+  },
+  {
+    id: 9, isTrap: false,
+    setting: "GP Surgery", patient: "19M", time: "14:02",
+    presenting: "Palpitations, dizziness and breathlessness for 2 hours",
+    findings: [
+      "HR 102 bpm (sinus tachycardia on 12-lead ECG). BP 124/76, SpO₂ 99%",
+      "No structural cardiac disease. No family history of sudden cardiac death.",
+      "Onset preceded by university exam. PHQ-4 positive for anxiety symptoms."
+    ],
+    aiRec: {
+      badgeClass: "badge-no-ab", badgeText: "NO CARDIAC CAUSE IDENTIFIED",
+      title: "Anxiety / Panic Presentation",
+      detail: "ECG: sinus tachycardia only. No evidence of SVT, WPW or other arrhythmia. Cardiac cause excluded. Presentation consistent with generalised anxiety / panic. Recommend: brief psychoeducation, self-referral to NHS Talking Therapies (IAPT), follow-up appointment in 4 weeks.",
+      confidence: "High"
+    },
+    correctAction: "accept"
+  },
+  {
+    id: 10, isTrap: false,
+    setting: "Minor Injuries Unit", patient: "8-month-old M", time: "15:48",
+    presenting: "Forehead laceration after fall from sofa",
+    findings: [
+      "1.5cm clean laceration to right forehead, edges well-approximated, minimal bleeding",
+      "No foreign body, no underlying bony deformity, no loss of consciousness reported",
+      "Alert, interactive, appropriate for age. APLS: no concerns. No safeguarding concerns."
+    ],
+    aiRec: {
+      badgeClass: "badge-minor", badgeText: "MINOR INJURY",
+      title: "Superficial Laceration — Closure Only",
+      detail: "Clean superficial wound with well-approximated edges. Steri-Strip closure appropriate. Sutures not required. Mechanism (low-height domestic fall) does not indicate imaging. Provide wound care and head injury safety advice to parents. No follow-up required unless wound breaks down.",
+      confidence: "High"
+    },
+    correctAction: "accept"
+  }
+];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let currentIndex = 0;
+let decisions = {};   // { caseId: 'accept' | 'override' | 'timeout' }
+let timerInterval = null;
+let timeLeft = 25;
+let awaitingChoice = false;
+
+// ═══════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function showIntro()  { clearInterval(timerInterval); showScreen('screen-intro'); }
+function restartGame(){ clearInterval(timerInterval); startGame(); }
+
+// ═══════════════════════════════════════════
+// GAME FLOW
+// ═══════════════════════════════════════════
+function startGame() {
+  currentIndex = 0;
+  decisions = {};
+  showScreen('screen-case');
+  renderCase();
+}
+
+function renderCase() {
+  if (currentIndex >= CASES.length) { showDebrief(); return; }
+
+  const c = CASES[currentIndex];
+  document.getElementById('case-counter').textContent = `Case ${currentIndex + 1} of ${CASES.length}`;
+
+  // Patient bar
+  document.getElementById('patient-bar').innerHTML = `
+    <span class="tag">${c.patient}</span>
+    <span>📍 ${c.setting}</span>
+    <span>🕐 ${c.time}</span>
+  `;
+
+  // Clinical details
+  document.getElementById('presenting-complaint').textContent = c.presenting;
+  const ul = document.getElementById('findings-list');
+  ul.innerHTML = c.findings.map(f => `<li>${f}</li>`).join('');
+
+  // AI panel
+  const badge = document.getElementById('ai-badge');
+  badge.textContent = c.aiRec.badgeText;
+  badge.className = `ai-badge ${c.aiRec.badgeClass}`;
+  document.getElementById('ai-rec-title').textContent = c.aiRec.title;
+  document.getElementById('ai-rec-detail').textContent = c.aiRec.detail;
+  document.getElementById('ai-confidence').textContent = c.aiRec.confidence;
+
+  // Reset state
+  document.getElementById('btn-accept').disabled = false;
+  document.getElementById('btn-override').disabled = false;
+  document.getElementById('timeout-flash').className = 'timeout-flash';
+  document.getElementById('case-card').style.opacity = '1';
+  awaitingChoice = true;
+
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 25;
+  updateTimerUI();
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      handleTimeout();
+    }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const pct = (timeLeft / 25) * 100;
+  const fill = document.getElementById('timer-bar-fill');
+  const num = document.getElementById('timer-num');
+  fill.style.width = pct + '%';
+  const urgent = timeLeft <= 8;
+  fill.className = 'timer-bar-fill' + (urgent ? ' urgent' : '');
+  num.className = 'timer-num' + (urgent ? ' urgent' : '');
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  num.textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+}
+
+function handleTimeout() {
+  if (!awaitingChoice) return;
+  awaitingChoice = false;
+  const c = CASES[currentIndex];
+  decisions[c.id] = 'timeout';
+  document.getElementById('btn-accept').disabled = true;
+  document.getElementById('btn-override').disabled = true;
+  document.getElementById('timeout-flash').className = 'timeout-flash show';
+  setTimeout(() => { currentIndex++; renderCase(); }, 1500);
+}
+
+function handleDecision(choice) {
+  if (!awaitingChoice) return;
+  awaitingChoice = false;
+  clearInterval(timerInterval);
+
+  const c = CASES[currentIndex];
+  decisions[c.id] = choice;
+  document.getElementById('btn-accept').disabled = true;
+  document.getElementById('btn-override').disabled = true;
+
+  // Brief visual confirmation
+  const btn = document.getElementById(choice === 'accept' ? 'btn-accept' : 'btn-override');
+  btn.style.background = choice === 'accept' ? '#005EB8' : '#e67e22';
+  btn.style.color = 'white';
+
+  setTimeout(() => { currentIndex++; renderCase(); }, 600);
+}
+
+// ═══════════════════════════════════════════
+// DEBRIEF
+// ═══════════════════════════════════════════
+function showDebrief() {
+  const traps = CASES.filter(c => c.isTrap);
+  let trapsCaught = 0;
+  let totalAccepted = 0;
+  let totalOverridden = 0;
+  let totalTimeout = 0;
+
+  Object.values(decisions).forEach(d => {
+    if (d === 'accept') totalAccepted++;
+    else if (d === 'override') totalOverridden++;
+    else totalTimeout++;
+  });
+
+  traps.forEach(t => {
+    if (decisions[t.id] === 'override') trapsCaught++;
+  });
+
+  // Header stats
+  document.getElementById('num-agreed').textContent = totalAccepted + (totalTimeout > 0 ? `+${totalTimeout}` : '');
+  document.getElementById('num-overridden').textContent = totalOverridden;
+  document.getElementById('num-traps-caught').textContent = `${trapsCaught}/3`;
+
+  const trapCell = document.getElementById('cell-traps');
+  trapCell.className = 'bias-cell ' + (trapsCaught === 3 ? 'good' : trapsCaught === 0 ? 'danger' : '');
+
+  // Headline
+  const headlines = [
+    "You accepted every AI recommendation — including three that were clinically dangerous.",
+    "You caught 1 of 3 critical errors. Two dangerous recommendations went unchallenged.",
+    "You caught 2 of 3 critical errors. Strong performance — one slipped through.",
+    "Outstanding — you caught all three critical errors."
+  ];
+  document.getElementById('debrief-headline').textContent = headlines[trapsCaught];
+
+  // Timeline
+  const timeline = document.getElementById('timeline');
+  timeline.innerHTML = CASES.map(c => {
+    const dec = decisions[c.id] || 'timeout';
+    let cls, label;
+    if (c.isTrap) {
+      if (dec === 'override') { cls = 'caught-trap'; label = '✓ Overridden'; }
+      else { cls = 'missed-trap'; label = '✗ Missed'; }
+    } else {
+      if (dec === 'timeout') { cls = 'timeout'; label = 'Timed out'; }
+      else { cls = 'correct-accept'; label = dec === 'accept' ? 'Accepted' : 'Overridden'; }
+    }
+    return `<div class="timeline-cell ${cls}">
+      <span class="case-num">${c.id}</span>
+      <span class="cell-label">${label}</span>
+    </div>`;
+  }).join('');
+
+  // Trap reveals
+  const trapDiv = document.getElementById('trap-reveals');
+  trapDiv.innerHTML = traps.map(t => {
+    const caught = decisions[t.id] === 'override';
+    return `
+      <div class="trap-card ${caught ? 'caught' : ''}">
+        <div class="trap-header">
+          ${caught ? '✓ You caught this one' : '✗ You missed this one'}
+          &nbsp;·&nbsp; Case ${t.id}
+        </div>
+        <div class="trap-body">
+          <div class="trap-patient">Patient: ${t.patient} — ${t.setting}</div>
+          <div class="trap-ai-said">AI said: "${t.aiRec.badgeText} — ${t.aiRec.title}"</div>
+          <div class="trap-explanation">${t.trapExplanation}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  showScreen('screen-debrief');
+}
+</script>
+</body>
+</html>
