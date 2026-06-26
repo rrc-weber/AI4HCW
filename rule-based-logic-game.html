@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Follow the Logic — How a Rule-Based System Works</title>
+<style>
+  :root{
+    --nhs-blue:#005EB8; --nhs-dark-blue:#003087; --nhs-light-blue:#41B6E6;
+    --nhs-green:#009639; --nhs-yellow:#FFB81C; --nhs-red:#DA291C; --nhs-amber:#ED8B00;
+    --grey:#425563; --light-grey:#F0F4F5; --text:#212B32; --text-mid:#4C6272;
+    --border:#D8DDE0; --radius:10px; --shadow:0 2px 12px rgba(0,0,0,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Frutiger',Arial,Helvetica,sans-serif;background:#eef2f6;color:var(--text);line-height:1.6;padding:20px;}
+  .wrap{max-width:840px;margin:0 auto;}
+  .hero{background:linear-gradient(135deg,var(--nhs-dark-blue),var(--nhs-blue) 70%,var(--nhs-light-blue));color:#fff;border-radius:var(--radius);padding:28px 30px;margin-bottom:18px;}
+  .hero .badge{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+  .hero h1{font-size:clamp(24px,4vw,34px);margin-bottom:8px;}
+  .hero p{opacity:.92;font-size:16px;max-width:640px;}
+  .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:18px;}
+  .card h2{font-size:19px;color:var(--nhs-dark-blue);margin-bottom:10px;}
+  .card p{color:var(--text-mid);margin-bottom:10px;}
+  .info{background:#E8F4FD;border-left:4px solid var(--nhs-light-blue);border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:14.5px;}
+  .warn{background:#FFF9EC;border-left:4px solid var(--nhs-yellow);border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:14.5px;}
+  /* presets */
+  .presets{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+  .preset-btn{background:var(--light-grey);border:2px solid var(--border);border-radius:20px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;color:var(--grey);}
+  .preset-btn:hover{border-color:var(--nhs-blue);color:var(--nhs-blue);}
+  /* observation rows */
+  .obs{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);}
+  .obs:last-child{border-bottom:none;}
+  .obs-label{flex:0 0 150px;font-weight:600;font-size:14px;}
+  .obs-label small{display:block;font-weight:400;color:var(--text-mid);font-size:12px;}
+  .obs-control{flex:1;display:flex;align-items:center;gap:12px;}
+  .obs-control input[type=range]{flex:1;accent-color:var(--nhs-blue);}
+  .obs-val{flex:0 0 70px;text-align:right;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;}
+  .seg{display:flex;gap:6px;}
+  .seg button{border:2px solid var(--border);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--grey);}
+  .seg button.on{background:var(--nhs-blue);color:#fff;border-color:var(--nhs-blue);}
+  .pts{flex:0 0 78px;text-align:center;}
+  .pts .chip{display:inline-block;border-radius:14px;padding:2px 10px;font-size:12px;font-weight:800;}
+  .p0{background:#E6F4EA;color:#137333;} .p1{background:#FEF7E0;color:#9a6700;}
+  .p2{background:#FDE7E9;color:#a8071a;} .p3{background:#fbd3d8;color:#7a0010;}
+  .run-row{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
+  .btn{border:none;border-radius:8px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;}
+  .btn-primary{background:var(--nhs-blue);color:#fff;} .btn-primary:hover{background:var(--nhs-dark-blue);}
+  .btn-ghost{background:#fff;border:2px solid var(--nhs-blue);color:var(--nhs-blue);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  /* engine log */
+  .engine{background:#0f1b2a;border-radius:var(--radius);padding:18px 20px;margin-top:16px;font-family:'SF Mono',Consolas,Menlo,monospace;font-size:13.5px;color:#cfe3ff;min-height:60px;}
+  .engine .step{padding:5px 0;opacity:0;transform:translateY(4px);animation:rise .35s forwards;border-bottom:1px solid rgba(255,255,255,.06);}
+  @keyframes rise{to{opacity:1;transform:none;}}
+  .engine .k{color:#7fb0ff;} .engine .if{color:#ffd479;} .engine .ok{color:#7ee2a8;} .engine .hit{color:#ff9b8a;font-weight:700;}
+  .engine .sum{color:#fff;font-weight:700;}
+  .outcome{border-radius:var(--radius);padding:18px 22px;margin-top:16px;display:none;}
+  .outcome.show{display:block;animation:rise .4s;}
+  .outcome h3{font-size:18px;margin-bottom:4px;}
+  .outcome .lvl{font-size:13px;text-transform:uppercase;letter-spacing:.05em;font-weight:800;}
+  .o-green{background:#E6F4EA;border:2px solid var(--nhs-green);} .o-green h3{color:#137333;}
+  .o-amber{background:#FFF4E5;border:2px solid var(--nhs-amber);} .o-amber h3{color:#9a5b00;}
+  .o-red{background:#FDE7E9;border:2px solid var(--nhs-red);} .o-red h3{color:#a8071a;}
+  .determinism{font-size:13px;color:var(--text-mid);margin-top:10px;}
+  .takeaways .t{display:flex;gap:10px;margin-bottom:10px;font-size:14px;color:var(--text-mid);}
+  .takeaways .t b{color:var(--text);}
+  @media(max-width:560px){
+    .obs{flex-wrap:wrap;} .obs-label{flex-basis:100%;} .pts{flex-basis:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="badge">How it works · Rule-based systems</div>
+    <h1>Follow the Logic</h1>
+    <p>A rule-based system doesn't learn anything. A human writes the rules in advance, and the computer follows them — exactly, every time. Set a patient's observations below and watch the engine run, step by step.</p>
+  </div>
+
+  <div class="card">
+    <h2>What a rule-based system is</h2>
+    <p>It's a chain of <strong>if-then</strong> instructions a person decided ahead of time. Here we'll use a simplified version of <strong>NEWS2</strong> — the early-warning score used across the NHS. Every band and threshold below was set by humans, not learned from data.</p>
+    <div class="info">🎯 <strong>Your goal:</strong> change the observations, run the engine, and notice three things — it's <em>traceable</em> (you can see every step), <em>deterministic</em> (same input → same output), and it never improvises.</div>
+  </div>
+
+  <div class="card">
+    <h2>The patient</h2>
+    <p>Pick a preset or adjust each observation. Points update live using the human-written bands.</p>
+    <div class="presets">
+      <button class="preset-btn" onclick="applyPreset('stable')">🟢 Stable patient</button>
+      <button class="preset-btn" onclick="applyPreset('borderline')">🟠 Borderline</button>
+      <button class="preset-btn" onclick="applyPreset('deteriorating')">🔴 Deteriorating</button>
+      <button class="preset-btn" onclick="applyPreset('hidden')">⚠️ One bad reading</button>
+    </div>
+
+    <div id="obs-block"></div>
+
+    <div class="run-row">
+      <button class="btn btn-primary" id="runBtn" onclick="runEngine()">▶ Run the rule engine</button>
+      <button class="btn btn-ghost" id="againBtn" onclick="runEngine()" style="display:none;">↻ Run again (same input)</button>
+      <span class="determinism" id="runCount"></span>
+    </div>
+
+    <div class="engine" id="engine"><span style="opacity:.5;">// the engine's working will appear here, line by line…</span></div>
+    <div class="outcome" id="outcome"></div>
+  </div>
+
+  <div class="card takeaways" id="takeaways" style="display:none;">
+    <h2>So what did the engine actually do?</h2>
+    <div class="t">📋 <div><b>It only followed instructions.</b> Each line was an if-then rule a human wrote. No pattern was learned, no data was needed beyond this one patient.</div></div>
+    <div class="t">🔁 <div><b>It's deterministic.</b> Run it 100 times with the same observations and you get the same answer 100 times — that's why you can trust and audit it.</div></div>
+    <div class="t">🔍 <div><b>It's fully transparent.</b> You can point to the exact rule that fired. Compare that with machine learning, where the "rule" is buried inside the data it learned from.</div></div>
+    <div class="t">⚖️ <div><b>It's only as good as its thresholds.</b> If a human sets the bands badly, the system follows the bad rule just as faithfully. Try the <em>"One bad reading"</em> preset to see how a single parameter can override a low total.</div></div>
+  </div>
+
+  <div style="text-align:center;margin:4px 0 8px;padding:16px;background:#fff;border:2px dashed #cbd5e1;border-radius:10px;color:#4C6272;font-size:14.5px;">
+    ✅ <strong>That's this mini-game complete.</strong> Close this tab to return to the course.
+  </div>
+</div>
+
+<script>
+// ── Observation definitions with human-written NEWS2-style bands ──
+const OBS = [
+  { key:'resp', label:'Respiratory rate', unit:'/min', min:5, max:36, def:16,
+    bands:[[0,8,3],[9,11,1],[12,20,0],[21,24,2],[25,99,3]] },
+  { key:'spo2', label:'Oxygen saturation', unit:'%', min:84, max:100, def:98,
+    bands:[[0,91,3],[92,93,2],[94,95,1],[96,100,0]] },
+  { key:'pulse', label:'Pulse', unit:'bpm', min:30, max:150, def:75,
+    bands:[[0,40,3],[41,50,1],[51,90,0],[91,110,1],[111,130,2],[131,999,3]] },
+  { key:'sbp', label:'Systolic BP', unit:'mmHg', min:70, max:230, def:122,
+    bands:[[0,90,3],[91,100,2],[101,110,1],[111,219,0],[220,999,3]] },
+];
+const CONS = { key:'cons', label:'Consciousness', val:'A' }; // A = alert(0), C = new confusion/V/P/U (3)
+
+const state = {};
+OBS.forEach(o => state[o.key] = o.def);
+state.cons = 'A';
+let runs = 0;
+
+function points(o, v){
+  for(const [lo,hi,p] of o.bands){ if(v>=lo && v<=hi) return p; }
+  return 0;
+}
+function consPoints(){ return state.cons==='A' ? 0 : 3; }
+
+function pchip(p){ return `<span class="chip p${p}">${p} pt${p===1?'':'s'}</span>`; }
+
+function buildObs(){
+  const block = document.getElementById('obs-block');
+  let html = OBS.map(o => `
+    <div class="obs">
+      <div class="obs-label">${o.label}<small>${o.unit}</small></div>
+      <div class="obs-control">
+        <input type="range" min="${o.min}" max="${o.max}" value="${state[o.key]}" id="r-${o.key}" oninput="onSlide('${o.key}',this.value)">
+        <span class="obs-val" id="v-${o.key}">${state[o.key]} ${o.unit}</span>
+      </div>
+      <div class="pts" id="p-${o.key}">${pchip(points(o,state[o.key]))}</div>
+    </div>`).join('');
+  // consciousness toggle
+  html += `
+    <div class="obs">
+      <div class="obs-label">Consciousness<small>AVPU</small></div>
+      <div class="obs-control">
+        <div class="seg">
+          <button id="c-A" class="${state.cons==='A'?'on':''}" onclick="setCons('A')">Alert</button>
+          <button id="c-C" class="${state.cons==='C'?'on':''}" onclick="setCons('C')">New confusion / V·P·U</button>
+        </div>
+      </div>
+      <div class="pts" id="p-cons">${pchip(consPoints())}</div>
+    </div>`;
+  block.innerHTML = html;
+}
+function onSlide(key,val){
+  state[key]=+val;
+  const o=OBS.find(x=>x.key===key);
+  document.getElementById('v-'+key).textContent = val+' '+o.unit;
+  document.getElementById('p-'+key).innerHTML = pchip(points(o,+val));
+  resetRunUI();
+}
+function setCons(c){
+  state.cons=c;
+  document.getElementById('c-A').className = c==='A'?'on':'';
+  document.getElementById('c-C').className = c==='C'?'on':'';
+  document.getElementById('p-cons').innerHTML = pchip(consPoints());
+  resetRunUI();
+}
+function applyPreset(name){
+  const P = {
+    stable:        {resp:16,spo2:98,pulse:74,sbp:124,cons:'A'},
+    borderline:    {resp:21,spo2:95,pulse:96,sbp:108,cons:'A'},
+    deteriorating: {resp:26,spo2:91,pulse:122,sbp:96,cons:'C'},
+    hidden:        {resp:16,spo2:97,pulse:78,sbp:88, cons:'A'}, // total low but SBP=3
+  }[name];
+  Object.assign(state,P);
+  OBS.forEach(o=>{ document.getElementById('r-'+o.key).value=state[o.key]; });
+  buildObs();
+  resetRunUI();
+}
+function resetRunUI(){
+  document.getElementById('outcome').className='outcome';
+  document.getElementById('engine').innerHTML='<span style="opacity:.5;">// the engine\'s working will appear here, line by line…</span>';
+  document.getElementById('takeaways').style.display='none';
+  document.getElementById('againBtn').style.display='none';
+}
+
+// ── Run the deterministic engine, animated ──
+let animating=false;
+function runEngine(){
+  if(animating) return;
+  animating=true;
+  document.getElementById('runBtn').disabled=true;
+  const eng=document.getElementById('engine');
+  eng.innerHTML='';
+  document.getElementById('outcome').className='outcome';
+  document.getElementById('takeaways').style.display='none';
+
+  const lines=[];
+  let total=0; let anyThree=false;
+  OBS.forEach(o=>{
+    const v=state[o.key]; const p=points(o,v); total+=p; if(p===3) anyThree=true;
+    lines.push(`<span class="k">CHECK</span> ${o.label} = ${v}${o.unit==='%'?'%':' '+o.unit} &nbsp;→&nbsp; <span class="if">band rule</span> &nbsp;→&nbsp; <span class="${p===3?'hit':'ok'}">${p} point${p===1?'':'s'}</span>`);
+  });
+  const cp=consPoints(); total+=cp; if(cp===3) anyThree=true;
+  lines.push(`<span class="k">CHECK</span> Consciousness = ${state.cons==='A'?'Alert':'New confusion / V·P·U'} &nbsp;→&nbsp; <span class="${cp===3?'hit':'ok'}">${cp} point${cp===1?'':'s'}</span>`);
+  lines.push(`<span class="sum">SUM all points → total NEWS2 score = ${total}</span>`);
+
+  // escalation decision tree (human-written thresholds)
+  let outcome;
+  lines.push(`<span class="if">IF</span> total ≥ 7 ? ${total>=7?'<span class="hit">YES</span>':'no'}`);
+  if(total>=7){ outcome={cls:'o-red',lvl:'Emergency response',txt:'Emergency clinical response — continuous monitoring. (Rule: total ≥ 7)'}; }
+  else{
+    lines.push(`<span class="if">ELSE IF</span> total = 5 or 6 ? ${(total>=5)?'<span class="hit">YES</span>':'no'}`);
+    if(total>=5){ outcome={cls:'o-red',lvl:'Urgent review',txt:'Urgent review by a clinician — increase monitoring to hourly. (Rule: total 5–6)'}; }
+    else{
+      lines.push(`<span class="if">ELSE IF</span> any single parameter = 3 ? ${anyThree?'<span class="hit">YES</span>':'no'}`);
+      if(anyThree){ outcome={cls:'o-amber',lvl:'Review for one red',txt:'Even with a low total, one parameter scored 3 — so the rule says review by a clinician. (Rule: any single param = 3)'}; }
+      else{
+        lines.push(`<span class="if">ELSE IF</span> total = 1 to 4 ? ${(total>=1)?'<span class="hit">YES</span>':'no'}`);
+        if(total>=1){ outcome={cls:'o-amber',lvl:'Routine + nurse aware',txt:'Routine monitoring, nurse aware — minimum 4–6 hourly observations. (Rule: total 1–4)'}; }
+        else{ outcome={cls:'o-green',lvl:'Routine monitoring',txt:'Routine 12-hourly monitoring — no escalation needed. (Rule: total = 0)'}; }
+      }
+    }
+  }
+
+  // animate line by line
+  let i=0;
+  (function next(){
+    if(i<lines.length){
+      const d=document.createElement('div');
+      d.className='step'; d.style.animationDelay='0s'; d.innerHTML=lines[i];
+      eng.appendChild(d); eng.scrollTop=eng.scrollHeight; i++;
+      setTimeout(next,420);
+    } else {
+      const o=document.getElementById('outcome');
+      o.className='outcome show '+outcome.cls;
+      o.innerHTML=`<div class="lvl">Engine output</div><h3>${outcome.lvl}</h3><p style="margin:0;color:inherit;">${outcome.txt}</p>`;
+      runs++;
+      document.getElementById('runCount').textContent = runs===1 ? 'Ran once.' : 'Ran '+runs+' times — identical input, identical output every time.';
+      document.getElementById('againBtn').style.display='inline-block';
+      document.getElementById('takeaways').style.display='block';
+      document.getElementById('runBtn').disabled=false;
+      animating=false;
+    }
+  })();
+}
+
+buildObs();
+</script>
+</body>
+</html>

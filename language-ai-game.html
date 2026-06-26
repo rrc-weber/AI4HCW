@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Language AI Reads &amp; Writes — Tokens, Embeddings &amp; Temperature</title>
+<style>
+  :root{
+    --nhs-blue:#005EB8; --nhs-dark-blue:#003087; --nhs-light-blue:#41B6E6;
+    --nhs-green:#009639; --nhs-yellow:#FFB81C; --nhs-red:#DA291C; --orange:#C2410C;
+    --grey:#425563; --light-grey:#F0F4F5; --text:#212B32; --text-mid:#4C6272;
+    --border:#D8DDE0; --radius:10px; --shadow:0 2px 12px rgba(0,0,0,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Frutiger',Arial,Helvetica,sans-serif;background:#eef2f6;color:var(--text);line-height:1.6;padding:20px;}
+  .wrap{max-width:880px;margin:0 auto;}
+  .hero{background:linear-gradient(135deg,#8a2d08,var(--orange) 70%,#f08a4b);color:#fff;border-radius:var(--radius);padding:28px 30px;margin-bottom:18px;}
+  .hero .badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+  .hero h1{font-size:clamp(22px,4vw,32px);margin-bottom:8px;}
+  .hero p{opacity:.94;font-size:16px;max-width:680px;}
+  .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:18px;}
+  .step-tag{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--orange);}
+  .card h2{font-size:20px;color:var(--nhs-dark-blue);margin:2px 0 10px;}
+  .card p{color:var(--text-mid);margin-bottom:10px;}
+  .info{background:#FFF4ED;border-left:4px solid var(--orange);border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:14.5px;}
+  .sel-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .sel-row button{background:var(--light-grey);border:2px solid var(--border);border-radius:20px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--grey);}
+  .sel-row button.on{background:var(--orange);color:#fff;border-color:var(--orange);}
+  .tokens{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .tok{border-radius:7px;padding:6px 11px;font-size:14px;font-weight:700;background:#FFEAD9;color:#8a2d08;border:1px solid #f5c7a3;}
+  .tok.sub{background:#FFF;border-style:dashed;}
+  .tok.punct{background:#eef2f6;color:#64748b;}
+  .tokcount{font-size:13px;color:var(--text-mid);margin-top:10px;}
+  /* attention */
+  .attn-sentence{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:16px 0 10px;}
+  .attn-tok{display:flex;flex-direction:column;align-items:center;gap:5px;width:auto;}
+  .attn-word{border-radius:7px;padding:9px 13px;font-size:15px;font-weight:700;background:#FFEAD9;color:#8a2d08;border:1px solid #f5c7a3;transition:background .5s,color .5s;}
+  .attn-word.target{background:#fff;border:2px dashed var(--orange);color:var(--orange);}
+  .attn-wbar{width:100%;height:6px;background:#eef2f6;border-radius:3px;overflow:hidden;}
+  .attn-wfill{height:100%;background:var(--orange);width:0;transition:width .6s ease;}
+  .attn-legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-mid);}
+  .attn-legend .bar{display:inline-block;width:90px;height:10px;border-radius:5px;background:linear-gradient(90deg,#FFEAD9,#C2410C);}
+  /* embed scatter */
+  .scatter-wrap{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;}
+  svg{max-width:100%;height:auto;}
+  .dot{cursor:pointer;}
+  .dot text{font-size:9px;fill:var(--text);font-weight:600;}
+  .vecbox{flex:1;min-width:200px;background:#0f1b2a;color:#cfe3ff;border-radius:8px;padding:14px 16px;font-family:'SF Mono',Consolas,monospace;font-size:13px;}
+  .vecbox b{color:#ffb380;}
+  /* generate */
+  .gen-output{background:#fff;border:2px solid var(--border);border-radius:8px;padding:14px 16px;font-size:16px;line-height:1.7;min-height:60px;}
+  .gen-output .seed{color:var(--text);} .gen-output .gen{color:var(--orange);font-weight:700;}
+  .gen-output .cursor{color:#bbb;}
+  .temp-row{display:flex;align-items:center;gap:14px;margin:16px 0 6px;flex-wrap:wrap;}
+  .temp-row input[type=range]{flex:1;min-width:160px;accent-color:var(--orange);}
+  .temp-val{font-weight:800;font-variant-numeric:tabular-nums;color:var(--orange);}
+  .temp-ends{display:flex;justify-content:space-between;font-size:12px;color:var(--text-mid);}
+  .bars{margin-top:8px;}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:5px;font-size:13.5px;}
+  .bar-tok{flex:0 0 92px;text-align:right;font-weight:700;}
+  .bar-track{flex:1;background:#f1f5f9;border-radius:5px;height:20px;overflow:hidden;}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--orange),#f6a564);border-radius:5px;width:0;transition:width .35s;}
+  .bar-pct{flex:0 0 48px;font-variant-numeric:tabular-nums;color:var(--text-mid);}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+  .btn{border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;transition:.15s;}
+  .btn-primary{background:var(--orange);color:#fff;} .btn-primary:hover{background:#9a3409;}
+  .btn-ghost{background:#fff;border:2px solid var(--grey);color:var(--grey);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .takeaways .t{display:flex;gap:10px;margin-bottom:10px;font-size:14px;color:var(--text-mid);}
+  .takeaways .t b{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="badge">How it works · Language AI (NLP &amp; LLMs)</div>
+    <h1>How Language AI Reads &amp; Writes</h1>
+    <p>Language models don't understand words the way we do. They chop text into <em>tokens</em>, turn each token into <em>numbers</em>, and then predict the next token one at a time. Walk through all three steps below — and meet the dial that controls how "creative" the writing gets.</p>
+  </div>
+
+  <!-- STEP 1 TOKENISE -->
+  <div class="card">
+    <div class="step-tag">Step 1</div>
+    <h2>Tokenise — chop the text into pieces</h2>
+    <p>First the text is split into <strong>tokens</strong>: common words become one token; longer or rarer words get split into sub-word pieces. Pick a phrase:</p>
+    <div class="sel-row" id="phraseSel"></div>
+    <div class="tokens" id="tokenView"></div>
+    <div class="tokcount" id="tokCount"></div>
+    <div class="info">💡 Notice rare words like <em>breathlessness</em> break into sub-word tokens (<strong>breath ▸ less ▸ ness</strong>). This lets the model handle any word using a fixed vocabulary of pieces.</div>
+  </div>
+
+  <!-- STEP 2 EMBED -->
+  <div class="card">
+    <div class="step-tag">Step 2</div>
+    <h2>Embed — turn each token into numbers</h2>
+    <p>Every token becomes a list of numbers — a <strong>vector</strong> — that captures its meaning. Tokens with similar meaning get similar numbers, so they sit close together in this "meaning space". <strong>Tap any word</strong> to see its numbers and where it lives.</p>
+    <div class="scatter-wrap">
+      <svg id="scatter" viewBox="0 0 380 300" role="img" aria-label="Word meaning space"></svg>
+      <div class="vecbox" id="vecbox">Tap a word in the map…<br><br>The model never sees letters — only these numbers. "Closeness" of numbers = closeness of meaning.</div>
+    </div>
+  </div>
+
+  <!-- STEP 3 ATTENTION -->
+  <div class="card">
+    <div class="step-tag">Step 3</div>
+    <h2>Attention — decide which words matter</h2>
+    <p>Before predicting the next word, the model looks back over the whole sentence and decides which earlier words to <strong>pay attention to</strong>. Relevant words get more weight; filler words get less. This is the breakthrough that makes modern LLMs work.</p>
+    <div class="sel-row" id="attnSel"></div>
+    <div class="attn-sentence" id="attnSentence"></div>
+    <div class="attn-legend">Attention weight:&nbsp;<span>low</span><span class="bar"></span><span>high</span></div>
+    <div class="controls">
+      <button class="btn btn-primary" id="attnBtn" onclick="runAttention()">👁 Show what it attends to</button>
+    </div>
+    <div class="info" id="attnNote" style="display:none;"></div>
+  </div>
+
+  <!-- STEP 4 GENERATE -->
+  <div class="card">
+    <div class="step-tag">Step 4</div>
+    <h2>Predict the next token — with a temperature dial</h2>
+    <p>To <em>write</em>, the model looks at the text so far and produces a probability for every possible next token. <strong>Temperature</strong> reshapes those probabilities: low = always pick the safest, most likely token (predictable); high = give riskier tokens a chance (creative, sometimes odd).</p>
+
+    <div class="gen-output" id="genOut"></div>
+
+    <div class="temp-row">
+      <span style="font-weight:700;">Temperature</span>
+      <input type="range" min="0.1" max="2" step="0.1" value="0.7" id="temp" oninput="onTemp()">
+      <span class="temp-val" id="tempVal">0.7</span>
+    </div>
+    <div class="temp-ends"><span>0.1 — predictable / repetitive</span><span>2.0 — creative / erratic</span></div>
+
+    <p style="margin-top:14px;font-size:13.5px;"><strong>Probabilities for the next token</strong> (after "<span id="lastTok"></span>"):</p>
+    <div class="bars" id="bars"></div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="sampleBtn" onclick="sampleOne()">🎲 Sample next token</button>
+      <button class="btn btn-primary" id="autoBtn" onclick="autoComplete()">⏩ Autocomplete</button>
+      <button class="btn btn-ghost" onclick="resetGen()">↻ Start over</button>
+    </div>
+    <div class="info" id="genNote">At <strong>low</strong> temperature the top bar dominates, so it picks the same safe word every time. Crank it up and watch the smaller bars grow — that's where surprising (and sometimes wrong) wording comes from.</div>
+  </div>
+
+  <div class="card takeaways">
+    <h2>What you just saw</h2>
+    <div class="t">✂️ <div><b>Tokens, not words.</b> Text is broken into pieces from a fixed vocabulary, so the model can handle anything — including words it has never seen.</div></div>
+    <div class="t">🔢 <div><b>Meaning becomes numbers.</b> Each token is a vector; similar meanings sit close together. This is how NLP "understands" — by position in number-space, not by definition.</div></div>
+    <div class="t">🔦 <div><b>Attention picks what matters.</b> Before each prediction the model weighs every earlier word and focuses on the relevant ones — that's the breakthrough behind modern LLMs.</div></div>
+    <div class="t">🎲 <div><b>Writing = predicting the next token, repeatedly.</b> The model never plans a sentence; it just keeps choosing a likely next token. Temperature controls how adventurous those choices are.</div></div>
+    <div class="t">⚠️ <div><b>This is why it can "hallucinate".</b> A fluent, confident sentence is just high-probability tokens strung together — there's no fact-checking step. Always review clinical output.</div></div>
+  </div>
+
+  <div style="text-align:center;margin:4px 0 8px;padding:16px;background:#fff;border:2px dashed #cbd5e1;border-radius:10px;color:#4C6272;font-size:14.5px;">
+    ✅ <strong>That's this mini-game complete.</strong> Close this tab to return to the course.
+  </div>
+</div>
+
+<script>
+// ════════ STEP 1 — TOKENISE ════════
+const PHRASES = [
+  'The patient has a cough and fever',
+  'Severe breathlessness on exertion',
+  'Chest pain radiating to the left arm',
+];
+const SUBWORDS = {
+  breathlessness:['breath','less','ness'],
+  exertion:['exer','tion'],
+  radiating:['radi','ating'],
+};
+let phraseIdx=0;
+function buildPhraseSel(){
+  document.getElementById('phraseSel').innerHTML = PHRASES.map((p,i)=>
+    `<button class="${i===0?'on':''}" id="ph-${i}" onclick="pickPhrase(${i})">${p}</button>`).join('');
+}
+function pickPhrase(i){
+  phraseIdx=i;
+  PHRASES.forEach((_,k)=>document.getElementById('ph-'+k).className=(k===i?'on':''));
+  renderTokens();
+}
+function renderTokens(){
+  const words=PHRASES[phraseIdx].split(' ');
+  let toks=[];
+  words.forEach(w=>{
+    const lw=w.toLowerCase().replace(/[^a-z]/g,'');
+    if(SUBWORDS[lw]){ SUBWORDS[lw].forEach((s,k)=>toks.push({t:s,sub:true})); }
+    else toks.push({t:w,sub:false});
+  });
+  document.getElementById('tokenView').innerHTML = toks.map(o=>
+    `<span class="tok ${o.sub?'sub':''}">${o.t}</span>`).join('');
+  document.getElementById('tokCount').textContent =
+    `${words.length} words → ${toks.length} tokens. (The model works in tokens, not words.)`;
+}
+
+// ════════ STEP 2 — EMBED (meaning space) ════════
+// fixed 2D coords (0..100) grouped by meaning; z is a 3rd made-up dimension
+const VOCAB=[
+  // symptoms cluster (left-top)
+  {w:'cough',x:18,y:30}, {w:'fever',x:30,y:22}, {w:'breathless',x:14,y:46},
+  {w:'nausea',x:28,y:40}, {w:'pain',x:22,y:58}, {w:'headache',x:36,y:52},
+  // body parts (right-top)
+  {w:'chest',x:74,y:26}, {w:'arm',x:86,y:36}, {w:'head',x:78,y:14}, {w:'abdomen',x:88,y:50},
+  // people (bottom-left)
+  {w:'patient',x:20,y:84}, {w:'doctor',x:34,y:90}, {w:'nurse',x:12,y:74},
+  // time (bottom-right)
+  {w:'days',x:78,y:82}, {w:'hours',x:88,y:74}, {w:'weeks',x:70,y:90},
+];
+function vecOf(o){ // derive a little 3-number vector from position
+  return [ (o.x/10).toFixed(1), (o.y/10).toFixed(1), (((o.x+o.y)%30)/10).toFixed(1) ];
+}
+function drawScatter(sel){
+  const svg=document.getElementById('scatter');
+  const P=(v,axis)=> axis==='x' ? 20+ v*3.4 : 20+ v*2.6; // map 0..100 to padding box
+  let s='';
+  // soft cluster bg labels
+  const clusters=[['symptoms',26,16,'#C2410C'],['body parts',82,8,'#7E22CE'],['people',24,68,'#1D4ED8'],['time',82,66,'#009639']];
+  clusters.forEach(([name,x,y,c])=>{ s+=`<text x="${P(x,'x')}" y="${P(y,'y')}" font-size="10" font-weight="700" fill="${c}" opacity="0.6" text-anchor="middle">${name}</text>`; });
+  VOCAB.forEach((o,i)=>{
+    const cx=P(o.x,'x'), cy=P(o.y,'y');
+    const on = sel===i;
+    s+=`<g class="dot" onclick="pickWord(${i})">
+      <circle cx="${cx}" cy="${cy}" r="${on?7:5}" fill="${on?'#C2410C':'#f6a564'}" stroke="#8a2d08" stroke-width="${on?2:1}"/>
+      <text x="${cx}" y="${cy-9}" text-anchor="middle">${o.w}</text></g>`;
+  });
+  svg.innerHTML=s;
+}
+function pickWord(i){
+  drawScatter(i);
+  const o=VOCAB[i]; const v=vecOf(o);
+  document.getElementById('vecbox').innerHTML =
+    `<b>"${o.w}"</b> becomes the vector:<br><br>[ ${v.join(', ')} … ]<br><br>`+
+    `Real models use hundreds of numbers per token. Words near "${o.w}" on the map have similar numbers — that closeness <em>is</em> the meaning the model uses.`;
+}
+
+// ════════ STEP 3 — ATTENTION ════════
+const ATTN=[
+  { tag:'Symptom',
+    prompt:['The','patient','had','chest','pain','radiating','to','her','___'],
+    weights:[0.05,0.15,0.05,0.70,0.85,1.0,0.10,0.25,null],
+    predict:'arm',
+    note:'To fill the blank, the model attends most to “radiating”, “pain” and “chest” — so it predicts “arm”. The filler words (“the”, “had”, “to”) barely matter.' },
+  { tag:'Pronoun',
+    prompt:['The','patient','took','her','medication','because','___','felt','unwell'],
+    weights:[0.05,1.0,0.10,0.60,0.15,0.20,null,0.10,0.15],
+    predict:'she',
+    note:'Here the blank is a pronoun. The model attends back to “patient” (and “her”) to work out who the sentence is about — so it predicts “she”. This is how attention tracks meaning across a whole sentence, not just the last word.' },
+];
+let attnIdx=0;
+function colHeat(w){
+  const t=Math.max(0,Math.min(1,w));
+  const c1=[255,234,217], c2=[194,65,12];
+  const r=Math.round(c1[0]+(c2[0]-c1[0])*t), g=Math.round(c1[1]+(c2[1]-c1[1])*t), b=Math.round(c1[2]+(c2[2]-c1[2])*t);
+  return `rgb(${r},${g},${b})`;
+}
+function buildAttnSel(){
+  document.getElementById('attnSel').innerHTML = ATTN.map((e,i)=>
+    `<button class="${i===0?'on':''}" id="attn-${i}" onclick="pickAttn(${i})">${e.tag} example</button>`).join('');
+}
+function renderAttn(show){
+  const ex=ATTN[attnIdx];
+  document.getElementById('attnSentence').innerHTML = ex.prompt.map((tok,i)=>{
+    const w=ex.weights[i];
+    if(w===null){
+      const label = show ? ex.predict : '___';
+      return `<div class="attn-tok"><div class="attn-word target">${label}</div><div class="attn-wbar" style="visibility:hidden"></div></div>`;
+    }
+    const bg = show ? colHeat(w) : '#FFEAD9';
+    const col = (show && w>0.55) ? '#fff' : '#8a2d08';
+    return `<div class="attn-tok"><div class="attn-word" style="background:${bg};color:${col}">${tok}</div><div class="attn-wbar"><div class="attn-wfill" style="width:${show?Math.round(w*100):0}%"></div></div></div>`;
+  }).join('');
+}
+function runAttention(){
+  renderAttn(true);
+  const ex=ATTN[attnIdx];
+  const n=document.getElementById('attnNote');
+  n.style.display='block';
+  n.innerHTML='👁 '+ex.note;
+}
+function pickAttn(i){
+  attnIdx=i;
+  ATTN.forEach((_,k)=>document.getElementById('attn-'+k).className=(k===i?'on':''));
+  document.getElementById('attnNote').style.display='none';
+  renderAttn(false);
+}
+
+// ════════ STEP 4 — GENERATE ════════
+const PROMPT = 'The patient presented with';
+// tiny next-token model: lastToken -> [[token, score], ...]
+const NEXT = {
+  'with':[['shortness',5],['chest',4],['a',3],['fever',2],['severe',2]],
+  'shortness':[['of',9]],
+  'of':[['breath',9],['chest',1]],
+  'breath':[['and',4],['.',3],['on',2]],
+  'on':[['exertion',7],['exercise',3]],
+  'exertion':[['.',6],['and',3]],
+  'exercise':[['.',6]],
+  'chest':[['pain',8],['tightness',3]],
+  'pain':[['and',4],['radiating',3],['.',3]],
+  'radiating':[['to',8]],
+  'to':[['the',7],['her',2],['his',2]],
+  'the':[['left',4],['arm',3],['chest',2],['shoulder',2]],
+  'her':[['left',5],['arm',3]],
+  'his':[['left',5],['arm',3]],
+  'left':[['arm',7],['shoulder',3]],
+  'shoulder':[['.',5],['and',3]],
+  'arm':[['and',3],['.',4]],
+  'a':[['cough',4],['fever',4],['headache',3]],
+  'severe':[['headache',5],['chest',3]],
+  'fever':[['and',4],['for',3],['.',2]],
+  'headache':[['and',3],['.',4]],
+  'and':[['nausea',4],['cough',3],['sweating',3],['fatigue',2]],
+  'cough':[['for',4],['and',2],['.',3]],
+  'nausea':[['and',3],['.',4]],
+  'sweating':[['.',5],['and',3]],
+  'fatigue':[['.',5]],
+  'tightness':[['and',4],['.',4]],
+  'for':[['three',4],['two',3],['several',3]],
+  'three':[['days',8]],
+  'two':[['days',8]],
+  'several':[['days',6],['hours',4]],
+  'days':[['.',8]],
+  'hours':[['.',8]],
+  '.':[['<end>',1]],
+};
+let genTokens=[]; // generated tokens after prompt
+let lastToken='with';
+let temperature=0.7;
+let autoTimer=null;
+
+function softmaxTemp(cands,T){
+  const scores=cands.map(c=>c[1]);
+  const mx=Math.max(...scores);
+  const exps=scores.map(s=>Math.exp((s-mx)/T));
+  const sum=exps.reduce((a,b)=>a+b,0);
+  return cands.map((c,i)=>({tok:c[0],p:exps[i]/sum}));
+}
+function currentDist(){
+  const cands=NEXT[lastToken];
+  if(!cands) return null;
+  return softmaxTemp(cands,temperature).sort((a,b)=>b.p-a.p);
+}
+function renderGenText(){
+  const seed=`<span class="seed">${PROMPT} </span>`;
+  const gen=genTokens.map(t=> t==='.'?'<span class="gen">.</span>':`<span class="gen">${t}</span>`).join(' ').replace(/\s\./g,'.');
+  const ended = lastToken==='.' ;
+  document.getElementById('genOut').innerHTML = seed + gen + (ended?'':' <span class="cursor">▍</span>');
+  document.getElementById('lastTok').textContent = lastToken;
+}
+function renderBars(){
+  const dist=currentDist();
+  const box=document.getElementById('bars');
+  if(!dist || lastToken==='.'){ box.innerHTML='<em style="color:#64748b;font-size:13px;">Sentence finished — press “Start over”.</em>'; return; }
+  box.innerHTML=dist.map(d=>`
+    <div class="bar-row">
+      <div class="bar-tok">${d.tok==='.'?'· (end)':d.tok}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:0"></div></div>
+      <div class="bar-pct">${Math.round(d.p*100)}%</div>
+    </div>`).join('');
+  // animate widths
+  requestAnimationFrame(()=>{
+    [...box.querySelectorAll('.bar-fill')].forEach((el,i)=> el.style.width=Math.round(dist[i].p*100)+'%');
+  });
+}
+function sampleFrom(dist){
+  const r=Math.random(); let c=0;
+  for(const d of dist){ c+=d.p; if(r<=c) return d.tok; }
+  return dist[dist.length-1].tok;
+}
+function sampleOne(){
+  if(lastToken==='.'){ return; }
+  const dist=currentDist();
+  if(!dist) { return; }
+  const chosen=sampleFrom(dist);
+  if(chosen==='<end>'){ lastToken='.'; renderGenText(); renderBars(); return; }
+  genTokens.push(chosen);
+  lastToken=chosen;
+  renderGenText(); renderBars();
+}
+function autoComplete(){
+  if(autoTimer) return;
+  let steps=0;
+  document.getElementById('autoBtn').disabled=true;
+  autoTimer=setInterval(()=>{
+    sampleOne();
+    steps++;
+    if(lastToken==='.' || steps>14){ clearInterval(autoTimer); autoTimer=null; document.getElementById('autoBtn').disabled=false; }
+  }, 420);
+}
+function resetGen(){
+  if(autoTimer){ clearInterval(autoTimer); autoTimer=null; document.getElementById('autoBtn').disabled=false; }
+  genTokens=[]; lastToken='with';
+  renderGenText(); renderBars();
+}
+function onTemp(){
+  temperature=+document.getElementById('temp').value;
+  document.getElementById('tempVal').textContent=temperature.toFixed(1);
+  renderBars();
+}
+
+// init
+buildPhraseSel(); renderTokens();
+drawScatter(-1);
+buildAttnSel(); renderAttn(false);
+resetGen();
+</script>
+</body>
+</html>

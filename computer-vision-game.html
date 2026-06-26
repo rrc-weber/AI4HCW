@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Images Are Just Numbers — How Computer Vision Works</title>
+<style>
+  :root{
+    --nhs-blue:#005EB8; --nhs-dark-blue:#003087; --nhs-light-blue:#41B6E6;
+    --nhs-green:#009639; --nhs-yellow:#FFB81C; --nhs-red:#DA291C; --purple:#7E22CE;
+    --grey:#425563; --light-grey:#F0F4F5; --text:#212B32; --text-mid:#4C6272;
+    --border:#D8DDE0; --radius:10px; --shadow:0 2px 12px rgba(0,0,0,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Frutiger',Arial,Helvetica,sans-serif;background:#eef2f6;color:var(--text);line-height:1.6;padding:20px;}
+  .wrap{max-width:900px;margin:0 auto;}
+  .hero{background:linear-gradient(135deg,#5b1a9e,var(--purple) 70%,#b167e8);color:#fff;border-radius:var(--radius);padding:28px 30px;margin-bottom:18px;}
+  .hero .badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+  .hero h1{font-size:clamp(24px,4vw,34px);margin-bottom:8px;}
+  .hero p{opacity:.94;font-size:16px;max-width:660px;}
+  .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:18px;}
+  .card h2{font-size:19px;color:var(--nhs-dark-blue);margin-bottom:10px;}
+  .card p{color:var(--text-mid);margin-bottom:10px;}
+  .info{background:#FAF0FF;border-left:4px solid var(--purple);border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:14.5px;}
+  .stage{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;justify-content:center;}
+  .panel{text-align:center;}
+  .panel h3{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-mid);margin-bottom:8px;}
+  .grid{display:grid;gap:1px;background:#cbd5e1;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;}
+  .cell{width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;position:relative;}
+  .cell.num{font-size:9px;}
+  .win{outline:3px solid var(--nhs-yellow);outline-offset:-2px;z-index:3;}
+  .outcell.lit{animation:pop .3s;}
+  @keyframes pop{from{transform:scale(.6);}to{transform:scale(1);}}
+  .arrow{align-self:center;font-size:26px;color:var(--text-mid);}
+  .kernel{display:grid;grid-template-columns:repeat(3,34px);gap:3px;justify-content:center;margin:6px auto;}
+  .kcell{width:34px;height:34px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;background:#f1f5f9;border:1px solid var(--border);}
+  .kcell.pos{background:#E6F4EA;color:#137333;} .kcell.neg{background:#FDE7E9;color:#a8071a;}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px;}
+  .btn{border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;transition:.15s;}
+  .btn-primary{background:var(--purple);color:#fff;} .btn-primary:hover{background:#69189f;}
+  .btn-ghost{background:#fff;border:2px solid var(--grey);color:var(--grey);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  select{padding:9px 12px;border-radius:8px;border:2px solid var(--border);font-size:14px;font-weight:600;color:var(--text);}
+  .toggle-row{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text-mid);margin-top:10px;}
+  .switch{position:relative;width:42px;height:22px;}
+  .switch input{display:none;}
+  .slider{position:absolute;inset:0;background:#cbd5e1;border-radius:22px;cursor:pointer;transition:.2s;}
+  .slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+  .switch input:checked + .slider{background:var(--purple);}
+  .switch input:checked + .slider::before{transform:translateX(20px);}
+  .calc{background:#0f1b2a;color:#cfe3ff;border-radius:8px;padding:12px 16px;margin-top:14px;font-family:'SF Mono',Consolas,monospace;font-size:13px;min-height:46px;}
+  .calc b{color:#d6b3ff;}
+  .takeaways .t{display:flex;gap:10px;margin-bottom:10px;font-size:14px;color:var(--text-mid);}
+  .takeaways .t b{color:var(--text);}
+  @media(max-width:680px){ .cell{width:20px;height:20px;} .arrow{transform:rotate(90deg);} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="badge">How it works · Computer vision</div>
+    <h1>Images Are Just Numbers</h1>
+    <p>To a computer, an image isn't a picture — it's a grid of numbers, one per pixel. Computer vision finds features by sliding small <em>filters</em> across that grid. Here's a simple "scan" with a bright lesion on it. Watch the filter trace its edges.</p>
+  </div>
+
+  <div class="card">
+    <h2>1 · A picture is a grid of numbers</h2>
+    <p>Below is a tiny 12×12 grayscale image. Each pixel is a brightness value from 0 (black) to 255 (white). Flip the switch to see the numbers underneath the picture.</p>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" id="showNums" onchange="renderInput()"><span class="slider"></span></label>
+      Show pixel numbers
+    </div>
+    <div style="text-align:center;margin-top:12px;">
+      <div class="grid" id="inputGrid" style="display:inline-grid;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Slide a filter to find features</h2>
+    <p>A <strong>filter</strong> (or kernel) is a tiny grid of weights. It slides over every position; at each spot it multiplies overlapping numbers, adds them up, and writes one number to the <strong>feature map</strong>. Different filters reveal different features.</p>
+    <div class="controls">
+      <label for="kernelSel" style="font-weight:600;font-size:14px;">Filter:</label>
+      <select id="kernelSel" onchange="changeKernel()">
+        <option value="vedge">Vertical-edge detector</option>
+        <option value="hedge">Horizontal-edge detector</option>
+        <option value="outline">Outline (all edges)</option>
+        <option value="blur">Blur (average)</option>
+      </select>
+      <button class="btn btn-primary" id="runBtn" onclick="runConv()">▶ Run the filter</button>
+      <button class="btn btn-ghost" id="stepBtn" onclick="stepConv()">Step ▸</button>
+      <button class="btn btn-ghost" onclick="resetConv()">↻ Reset</button>
+    </div>
+
+    <div class="stage" style="margin-top:18px;">
+      <div class="panel">
+        <h3>Image (input)</h3>
+        <div class="grid" id="convInput" style="display:inline-grid;"></div>
+      </div>
+      <div class="panel" style="align-self:center;">
+        <h3>Filter</h3>
+        <div class="kernel" id="kernelView"></div>
+        <div class="arrow">→</div>
+      </div>
+      <div class="panel">
+        <h3>Feature map (output)</h3>
+        <div class="grid" id="outputGrid" style="display:inline-grid;"></div>
+      </div>
+    </div>
+    <div class="calc" id="calc">Press <b>Run the filter</b> or <b>Step</b> to watch the filter compute each output number.</div>
+    <div class="info" id="kdesc">The <strong>vertical-edge detector</strong> lights up where brightness changes left-to-right — so it outlines the vertical sides of the lesion.</div>
+  </div>
+
+  <div class="card takeaways">
+    <h2>What you just saw</h2>
+    <div class="t">🔢 <div><b>No "seeing" involved.</b> The image is pure numbers. Everything a vision model does is arithmetic on those numbers.</div></div>
+    <div class="t">🔎 <div><b>Filters extract features.</b> One filter finds vertical edges, another finds horizontal ones, another blurs. Stack hundreds of them and a network learns to detect textures, shapes, then whole structures.</div></div>
+    <div class="t">🧠 <div><b>This is the first layer of a vision network.</b> Tools like Skin Analytics DERM or Brainomix e-Stroke begin exactly here — then feed these feature maps into the deep-learning layers you met earlier.</div></div>
+    <div class="t">⚖️ <div><b>It only knows the pixels it's given.</b> If the training images differed from your patients' scans, the same filters can pick up the wrong things — which is why validation matters.</div></div>
+  </div>
+
+  <div style="text-align:center;margin:4px 0 8px;padding:16px;background:#fff;border:2px dashed #cbd5e1;border-radius:10px;color:#4C6272;font-size:14.5px;">
+    ✅ <strong>That's this mini-game complete.</strong> Close this tab to return to the course.
+  </div>
+</div>
+
+<script>
+// ── Build a 12x12 grayscale image: bright disc ("lesion") on darker background ──
+const N=12;
+const IMG=[];
+(function(){
+  const cx=5.5, cy=5.5, r=3.4;
+  for(let y=0;y<N;y++){ const row=[];
+    for(let x=0;x<N;x++){
+      const d=Math.hypot(x-cx,y-cy);
+      let v = d<=r ? 215 : 55;
+      // soft rim
+      if(d>r && d<r+1.0) v=135;
+      row.push(v);
+    }
+    IMG.push(row);
+  }
+})();
+
+const KERNELS={
+  vedge:{name:'Vertical-edge detector',k:[[-1,0,1],[-2,0,2],[-1,0,1]],
+    desc:'The <strong>vertical-edge detector</strong> lights up where brightness changes left-to-right — so it outlines the vertical sides of the lesion.'},
+  hedge:{name:'Horizontal-edge detector',k:[[-1,-2,-1],[0,0,0],[1,2,1]],
+    desc:'The <strong>horizontal-edge detector</strong> responds where brightness changes top-to-bottom — outlining the top and bottom of the lesion.'},
+  outline:{name:'Outline (all edges)',k:[[0,-1,0],[-1,4,-1],[0,-1,0]],
+    desc:'The <strong>outline filter</strong> reacts to change in any direction, so it traces the whole rim of the lesion and stays dark in flat areas.'},
+  blur:{name:'Blur (average)',k:[[1,1,1],[1,1,1],[1,1,1]],div:9,
+    desc:'The <strong>blur filter</strong> averages each pixel with its neighbours — no edges, just a softened version of the image. Useful for removing noise.'},
+};
+let curK='vedge';
+const OUT=N-2; // 10x10 valid convolution
+
+function grayCell(v){ // v 0..255
+  const g=Math.max(0,Math.min(255,Math.round(v)));
+  return `rgb(${g},${g},${g})`;
+}
+function txtColour(v){ return v>130?'#111':'#eee'; }
+
+function renderInput(){
+  const show=document.getElementById('showNums').checked;
+  const g=document.getElementById('inputGrid');
+  g.style.gridTemplateColumns=`repeat(${N},24px)`;
+  g.innerHTML='';
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const v=IMG[y][x];
+    g.innerHTML+=`<div class="cell" style="background:${grayCell(v)};color:${txtColour(v)}">${show?v:''}</div>`;
+  }
+}
+
+// convolution state
+let result=[], pos=0, animating=false;
+function convAt(oy,ox){
+  const k=KERNELS[curK].k; const div=KERNELS[curK].div||1;
+  let s=0, terms=[];
+  for(let j=0;j<3;j++)for(let i=0;i<3;i++){
+    const v=IMG[oy+j][ox+i], w=k[j][i];
+    s+=v*w;
+    if(w!==0) terms.push(`${v}×${w}`);
+  }
+  return {raw:s/div, terms};
+}
+function normOut(raw){
+  // map response to 0..255 brightness for display (abs for edges)
+  if(curK==='blur') return raw;
+  return Math.min(255, Math.abs(raw)/4);
+}
+
+function renderKernel(){
+  const k=KERNELS[curK].k; const div=KERNELS[curK].div;
+  const v=document.getElementById('kernelView');
+  v.innerHTML=k.flat().map(w=>`<div class="kcell ${w>0?'pos':w<0?'neg':''}">${w}</div>`).join('');
+  document.getElementById('kdesc').innerHTML=KERNELS[curK].desc + (div?` <em>(then divide by ${div})</em>`:'');
+}
+function blankOutput(){
+  const g=document.getElementById('outputGrid');
+  g.style.gridTemplateColumns=`repeat(${OUT},24px)`;
+  g.innerHTML='';
+  for(let i=0;i<OUT*OUT;i++) g.innerHTML+=`<div class="cell outcell" id="o-${i}" style="background:#1f2937;"></div>`;
+}
+function renderConvInput(winY=-1,winX=-1){
+  const g=document.getElementById('convInput');
+  g.style.gridTemplateColumns=`repeat(${N},24px)`;
+  g.innerHTML='';
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const inWin = winY>=0 && y>=winY && y<winY+3 && x>=winX && x<winX+3;
+    g.innerHTML+=`<div class="cell ${inWin?'win':''}" style="background:${grayCell(IMG[y][x])};color:${txtColour(IMG[y][x])}">${document.getElementById('showNums').checked?IMG[y][x]:''}</div>`;
+  }
+}
+
+function placeResult(idx){
+  const oy=Math.floor(idx/OUT), ox=idx%OUT;
+  const {raw,terms}=convAt(oy,ox);
+  const disp=normOut(raw);
+  const cell=document.getElementById('o-'+idx);
+  cell.style.background=grayCell(disp);
+  cell.classList.add('lit');
+  renderConvInput(oy,ox);
+  const shown = terms.slice(0,4).join(' + ') + (terms.length>4?' + …':'');
+  document.getElementById('calc').innerHTML =
+    `Position (row ${oy+1}, col ${ox+1}): &nbsp;<b>${shown}</b> ${KERNELS[curK].div?`÷ ${KERNELS[curK].div}`:''} = <b>${Math.round(raw)}</b> &nbsp;→&nbsp; feature value <b>${Math.round(disp)}</b>`;
+}
+
+function stepConv(){
+  if(animating) return;
+  if(pos===0) blankOutput();
+  if(pos>=OUT*OUT){ document.getElementById('calc').innerHTML='✅ Done — the whole feature map is filled. The bright cells are where the filter found its feature.'; renderConvInput(); return; }
+  placeResult(pos); pos++;
+}
+function runConv(){
+  if(animating) return;
+  animating=true;
+  document.getElementById('runBtn').disabled=true;
+  blankOutput(); pos=0;
+  (function loop(){
+    if(pos<OUT*OUT){ placeResult(pos); pos++; setTimeout(loop, 26); }
+    else{
+      animating=false;
+      document.getElementById('runBtn').disabled=false;
+      document.getElementById('calc').innerHTML='✅ Done — the whole feature map is filled. The bright cells are where the filter found its feature (here, the lesion\'s edges).';
+      renderConvInput();
+    }
+  })();
+}
+function resetConv(){
+  pos=0; blankOutput(); renderConvInput();
+  document.getElementById('calc').innerHTML='Press <b>Run the filter</b> or <b>Step</b> to watch the filter compute each output number.';
+}
+function changeKernel(){
+  curK=document.getElementById('kernelSel').value;
+  renderKernel(); resetConv();
+}
+
+// init
+renderInput(); renderConvInput(); renderKernel(); blankOutput();
+</script>
+</body>
+</html>

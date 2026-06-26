@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watch a Neural Network Fire — How Deep Learning Works</title>
+<style>
+  :root{
+    --nhs-blue:#005EB8; --nhs-dark-blue:#003087; --nhs-light-blue:#41B6E6;
+    --nhs-green:#009639; --nhs-yellow:#FFB81C; --nhs-red:#DA291C;
+    --grey:#425563; --light-grey:#F0F4F5; --text:#212B32; --text-mid:#4C6272;
+    --border:#D8DDE0; --radius:10px; --shadow:0 2px 12px rgba(0,0,0,.09);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Frutiger',Arial,Helvetica,sans-serif;background:#eef2f6;color:var(--text);line-height:1.6;padding:20px;}
+  .wrap{max-width:880px;margin:0 auto;}
+  .hero{background:linear-gradient(135deg,#0b6b3a,var(--nhs-green) 70%,#5ac57f);color:#fff;border-radius:var(--radius);padding:28px 30px;margin-bottom:18px;}
+  .hero .badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:20px;padding:4px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+  .hero h1{font-size:clamp(24px,4vw,34px);margin-bottom:8px;}
+  .hero p{opacity:.94;font-size:16px;max-width:660px;}
+  .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px;margin-bottom:18px;}
+  .card h2{font-size:19px;color:var(--nhs-dark-blue);margin-bottom:10px;}
+  .card p{color:var(--text-mid);margin-bottom:10px;}
+  .info{background:#E6F4EA;border-left:4px solid var(--nhs-green);border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:14.5px;}
+  .warn{background:#FFF9EC;border-left:4px solid var(--nhs-yellow);border-radius:0 8px 8px 0;padding:12px 16px;margin:12px 0;font-size:14.5px;}
+  .inputs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0 4px;}
+  .in-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:8px;padding:8px 12px;}
+  .in-row span{font-size:13.5px;font-weight:600;}
+  .toggle{display:flex;gap:4px;}
+  .toggle button{border:2px solid var(--border);background:#fff;border-radius:7px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;color:var(--grey);}
+  .toggle button.on{background:var(--nhs-green);color:#fff;border-color:var(--nhs-green);}
+  .toggle button.on.bad{background:var(--nhs-red);border-color:var(--nhs-red);}
+  svg{width:100%;height:auto;display:block;}
+  .edge{stroke-linecap:round;transition:stroke-width .2s,stroke .2s;}
+  .pulse{stroke-dasharray:6 8;animation:flow 1s linear infinite;}
+  @keyframes flow{to{stroke-dashoffset:-28;}}
+  .node-c{transition:fill .4s;}
+  .btn{border:none;border-radius:8px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;}
+  .btn-primary{background:var(--nhs-green);color:#fff;} .btn-primary:hover{background:#0b7a30;}
+  .btn-blue{background:var(--nhs-blue);color:#fff;} .btn-blue:hover{background:var(--nhs-dark-blue);}
+  .btn-ghost{background:#fff;border:2px solid var(--grey);color:var(--grey);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px;}
+  .out-box{text-align:center;margin-top:6px;}
+  .out-num{font-size:40px;font-weight:800;line-height:1;}
+  .out-label{font-size:13px;color:var(--text-mid);}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--text-mid);margin-top:6px;}
+  .legend i{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px;}
+  .metric{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap;}
+  .err-bar-wrap{flex:1;min-width:180px;background:#eee;border-radius:6px;height:12px;overflow:hidden;}
+  .err-bar{height:100%;background:linear-gradient(90deg,var(--nhs-red),var(--nhs-yellow));width:100%;transition:width .4s;}
+  .err-num{font-weight:800;font-variant-numeric:tabular-nums;}
+  .takeaways .t{display:flex;gap:10px;margin-bottom:10px;font-size:14px;color:var(--text-mid);}
+  .takeaways .t b{color:var(--text);}
+  @media(max-width:560px){ .inputs{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="badge">How it works · Deep learning</div>
+    <h1>Watch a Neural Network Fire</h1>
+    <p>"Deep" learning just means many layers of simple units called neurons. Each neuron adds up its inputs, weighted, and "fires" a little or a lot. Set a patient's signs, watch the signal flow through the layers — then train the network and see it get smarter.</p>
+  </div>
+
+  <div class="card">
+    <h2>1 · Set the inputs</h2>
+    <p>Four signs go into the network. Each is just a number (0 = normal, 1 = abnormal). Toggle a few, then run a forward pass.</p>
+    <div class="inputs" id="inputs"></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · The forward pass</h2>
+    <p>Press <strong>Forward pass</strong>. The signal travels left to right: every connection carries a <em>weight</em>, each neuron sums what it receives and fires (brighter = more active). The final neuron outputs a deterioration risk.</p>
+    <svg id="net" viewBox="0 0 820 360" role="img" aria-label="Neural network diagram"></svg>
+    <div class="legend">
+      <span><i style="background:var(--nhs-green)"></i>positive weight</span>
+      <span><i style="background:var(--nhs-red)"></i>negative weight</span>
+      <span><i style="background:#bbb"></i>thicker line = stronger weight</span>
+      <span>brighter node = more active</span>
+    </div>
+    <div class="out-box">
+      <div class="out-num" id="outNum">—</div>
+      <div class="out-label">predicted deterioration risk</div>
+    </div>
+    <div class="controls">
+      <button class="btn btn-primary" id="fwdBtn" onclick="forwardAnimate()">▶ Forward pass</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Where does "learning" happen?</h2>
+    <p>The network starts with random weights, so its guesses are poor. <strong>Learning is nothing more than adjusting those weights</strong> to make the answers less wrong. Below it trains on 8 example patients (each labelled deteriorating or stable). Press train and watch the error fall and the connections change.</p>
+    <div class="metric">
+      <span>Average error:</span>
+      <div class="err-bar-wrap"><div class="err-bar" id="errBar"></div></div>
+      <span class="err-num" id="errNum">—</span>
+    </div>
+    <div class="controls">
+      <button class="btn btn-blue" id="trainBtn" onclick="trainBurst()">🎓 Train 200 steps</button>
+      <button class="btn btn-ghost" onclick="resetNet()">↻ Reset weights (forget everything)</button>
+    </div>
+    <div class="warn" id="trainMsg" style="display:none;"></div>
+  </div>
+
+  <div class="card takeaways">
+    <h2>What you just saw</h2>
+    <div class="t">🔵 <div><b>A neuron is simple.</b> It multiplies each input by a weight, adds them up, and squashes the result into an "activity" between 0 and 1. Nothing more.</div></div>
+    <div class="t">🧱 <div><b>"Deep" = stacked layers.</b> Early layers detect simple things; later layers combine them into more abstract judgements. Real medical imaging networks have dozens of these layers and millions of weights.</div></div>
+    <div class="t">🎓 <div><b>Learning = tuning weights.</b> Training nudges every weight a little, over and over, to shrink the error. The "knowledge" of a deep learning model lives entirely in those numbers.</div></div>
+    <div class="t">❓ <div><b>That's also why it's hard to explain.</b> The answer is spread across thousands of weights, not a rule you can read — the opposite of a rule-based system.</div></div>
+  </div>
+
+  <div style="text-align:center;margin:4px 0 8px;padding:16px;background:#fff;border:2px dashed #cbd5e1;border-radius:10px;color:#4C6272;font-size:14.5px;">
+    ✅ <strong>That's this mini-game complete.</strong> Close this tab to return to the course.
+  </div>
+</div>
+
+<script>
+// ── Inputs ──
+const FEATURES = [
+  {key:'resp', label:'Respiratory rate', short:'Resp'},
+  {key:'o2',   label:'Oxygen saturation', short:'O₂'},
+  {key:'hr',   label:'Heart rate', short:'HR'},
+  {key:'cons', label:'Consciousness', short:'Consc.'},
+];
+let x = [0,0,0,0];
+
+function buildInputs(){
+  document.getElementById('inputs').innerHTML = FEATURES.map((f,i)=>`
+    <div class="in-row">
+      <span>${f.label}</span>
+      <div class="toggle">
+        <button id="t-${i}-0" class="${x[i]===0?'on':''}" onclick="setX(${i},0)">Normal</button>
+        <button id="t-${i}-1" class="${x[i]===1?'on bad':''}" onclick="setX(${i},1)">Abnormal</button>
+      </div>
+    </div>`).join('');
+}
+function setX(i,v){
+  x[i]=v;
+  document.getElementById(`t-${i}-0`).className = v===0?'on':'';
+  document.getElementById(`t-${i}-1`).className = v===1?'on bad':'';
+  document.getElementById('outNum').textContent='—';
+}
+
+// ── Network: 4 -> 4 -> 3 -> 1, sigmoid (two hidden layers = "deep") ──
+const NIN=4, NH1=4, NH2=3;
+let W1,b1,W2,b2,W3,b3;
+function seeded(){
+  // fixed starting weights for reproducibility
+  W1=[[0.6,-0.4,0.3,0.2],[-0.5,0.7,-0.2,0.4],[0.3,0.2,0.5,-0.6],[-0.2,-0.3,0.4,0.5]];
+  b1=[0.1,-0.1,0.0,0.05];
+  W2=[[0.4,-0.3,0.5,0.2],[-0.2,0.6,-0.4,0.3],[0.3,0.2,-0.5,0.4]];
+  b2=[0.05,-0.05,0.1];
+  W3=[0.5,-0.4,0.6]; b3=-0.2;
+}
+seeded();
+const sig = z => 1/(1+Math.exp(-z));
+
+function forward(inp){
+  const a1=[];
+  for(let j=0;j<NH1;j++){ let s=b1[j]; for(let i=0;i<NIN;i++) s+=W1[j][i]*inp[i]; a1[j]=sig(s); }
+  const a2=[];
+  for(let k=0;k<NH2;k++){ let s=b2[k]; for(let j=0;j<NH1;j++) s+=W2[k][j]*a1[j]; a2[k]=sig(s); }
+  let s3=b3; for(let k=0;k<NH2;k++) s3+=W3[k]*a2[k];
+  const a3=sig(s3);
+  return {a1,a2,a3};
+}
+
+// ── Training data: deteriorating (1) if 2+ flags abnormal ──
+const DATA = [
+  [[1,1,0,0],1],[[0,0,1,1],1],[[1,0,1,0],1],[[1,1,1,1],1],
+  [[0,0,0,0],0],[[1,0,0,0],0],[[0,1,0,0],0],[[0,0,1,0],0],
+];
+function avgError(){
+  let e=0;
+  for(const [inp,y] of DATA){ const {a3}=forward(inp); e+=(a3-y)*(a3-y); }
+  return e/DATA.length;
+}
+function trainStep(lr){
+  for(const [inp,y] of DATA){
+    const {a1,a2,a3}=forward(inp);
+    const d3=(a3-y)*a3*(1-a3);
+    const d2=[]; for(let k=0;k<NH2;k++) d2[k]=d3*W3[k]*a2[k]*(1-a2[k]);
+    const d1=[]; for(let j=0;j<NH1;j++){ let s=0; for(let k=0;k<NH2;k++) s+=d2[k]*W2[k][j]; d1[j]=s*a1[j]*(1-a1[j]); }
+    // output layer
+    for(let k=0;k<NH2;k++) W3[k]-=lr*d3*a2[k];
+    b3-=lr*d3;
+    // hidden layer 2
+    for(let k=0;k<NH2;k++){ for(let j=0;j<NH1;j++) W2[k][j]-=lr*d2[k]*a1[j]; b2[k]-=lr*d2[k]; }
+    // hidden layer 1
+    for(let j=0;j<NH1;j++){ for(let i=0;i<NIN;i++) W1[j][i]-=lr*d1[j]*inp[i]; b1[j]-=lr*d1[j]; }
+  }
+}
+
+// ── SVG layout (4 columns: 2 hidden layers) ──
+const LAYERS=[
+  {n:NIN, x:90,  label:'Inputs'},
+  {n:NH1, x:300, label:'Hidden layer 1'},
+  {n:NH2, x:520, label:'Hidden layer 2'},
+  {n:1,   x:720, label:'Output'},
+];
+let nodePos=[]; // [layer][node] = {x,y}
+function layoutNet(){
+  nodePos=[];
+  LAYERS.forEach((L)=>{
+    const arr=[];
+    const gap=300/(L.n+1);
+    for(let k=0;k<L.n;k++){ arr.push({x:L.x, y:50+gap*(k+1)}); }
+    nodePos.push(arr);
+  });
+}
+function wColour(w){ return w>=0 ? 'var(--nhs-green)' : 'var(--nhs-red)'; }
+function wWidth(w){ return Math.min(7, 1+Math.abs(w)*3); }
+function nodeFill(a){ // a in [0,1] -> light to vivid blue
+  const t=Math.max(0,Math.min(1,a));
+  const c1=[225,239,251], c2=[0,94,184];
+  const r=Math.round(c1[0]+(c2[0]-c1[0])*t), g=Math.round(c1[1]+(c2[1]-c1[1])*t), b=Math.round(c1[2]+(c2[2]-c1[2])*t);
+  return `rgb(${r},${g},${b})`;
+}
+function drawNet(act){
+  layoutNet();
+  const svg=document.getElementById('net');
+  let s='';
+  // layer labels
+  LAYERS.forEach(L=>{ s+=`<text x="${L.x}" y="24" text-anchor="middle" font-size="12.5" font-weight="700" fill="#4C6272">${L.label}</text>`; });
+  // edges input -> hidden1
+  for(let j=0;j<NH1;j++)for(let i=0;i<NIN;i++){
+    const a=nodePos[0][i], b=nodePos[1][j];
+    s+=`<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${wColour(W1[j][i])}" stroke-width="${wWidth(W1[j][i])}" stroke-opacity="0.5"/>`;
+  }
+  // edges hidden1 -> hidden2
+  for(let k=0;k<NH2;k++)for(let j=0;j<NH1;j++){
+    const a=nodePos[1][j], b=nodePos[2][k];
+    s+=`<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${wColour(W2[k][j])}" stroke-width="${wWidth(W2[k][j])}" stroke-opacity="0.5"/>`;
+  }
+  // edges hidden2 -> output
+  for(let k=0;k<NH2;k++){
+    const a=nodePos[2][k], b=nodePos[3][0];
+    s+=`<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${wColour(W3[k])}" stroke-width="${wWidth(W3[k])}" stroke-opacity="0.5"/>`;
+  }
+  // input nodes (label centred below — no clipping)
+  for(let i=0;i<NIN;i++){
+    const p=nodePos[0][i];
+    s+=`<circle class="node-c" cx="${p.x}" cy="${p.y}" r="19" fill="${nodeFill(x[i])}" stroke="#005EB8" stroke-width="2"/>`;
+    s+=`<text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-size="13" font-weight="700" fill="${x[i]>0.5?'#fff':'#003087'}">${x[i]}</text>`;
+    s+=`<text x="${p.x}" y="${p.y+34}" text-anchor="middle" font-size="10.5" fill="#4C6272">${FEATURES[i].short}</text>`;
+  }
+  // hidden layer 1
+  for(let j=0;j<NH1;j++){
+    const p=nodePos[1][j]; const a=act?act.a1[j]:0;
+    s+=`<circle class="node-c" cx="${p.x}" cy="${p.y}" r="19" fill="${nodeFill(a)}" stroke="#003087" stroke-width="2"/>`;
+    if(act) s+=`<text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="${a>0.5?'#fff':'#003087'}">${a.toFixed(2)}</text>`;
+  }
+  // hidden layer 2
+  for(let k=0;k<NH2;k++){
+    const p=nodePos[2][k]; const a=act?act.a2[k]:0;
+    s+=`<circle class="node-c" cx="${p.x}" cy="${p.y}" r="19" fill="${nodeFill(a)}" stroke="#003087" stroke-width="2"/>`;
+    if(act) s+=`<text x="${p.x}" y="${p.y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="${a>0.5?'#fff':'#003087'}">${a.toFixed(2)}</text>`;
+  }
+  // output
+  const po=nodePos[3][0]; const ao=act?act.a3:0;
+  s+=`<circle class="node-c" cx="${po.x}" cy="${po.y}" r="25" fill="${nodeFill(ao)}" stroke="#DA291C" stroke-width="3"/>`;
+  if(act) s+=`<text x="${po.x}" y="${po.y+5}" text-anchor="middle" font-size="13" font-weight="800" fill="${ao>0.5?'#fff':'#003087'}">${(ao*100|0)}%</text>`;
+  svg.innerHTML=s;
+}
+
+function forwardAnimate(){
+  const btn=document.getElementById('fwdBtn'); btn.disabled=true;
+  const act=forward(x);
+  // draw base then pulse edges in sequence, then activations
+  drawNet(null);
+  const lines=[...document.querySelectorAll('#net line')];
+  lines.forEach(l=>l.classList.add('pulse'));
+  setTimeout(()=>{
+    drawNet(act);
+    const pct=Math.round(act.a3*100);
+    const o=document.getElementById('outNum');
+    o.textContent=pct+'%';
+    o.style.color = pct>=50 ? 'var(--nhs-red)' : 'var(--nhs-green)';
+    btn.disabled=false;
+  }, 1100);
+}
+
+function updateError(){
+  const e=avgError();
+  document.getElementById('errNum').textContent=e.toFixed(3);
+  document.getElementById('errBar').style.width=Math.min(100,(e/0.30)*100)+'%';
+}
+function trainBurst(){
+  const btn=document.getElementById('trainBtn'); btn.disabled=true;
+  let n=0;
+  (function loop(){
+    for(let k=0;k<20;k++){ trainStep(0.8); n++; }
+    updateError(); drawNet(null);
+    if(n<300){ setTimeout(loop,36); }
+    else{
+      const act=forward(x);
+      drawNet(act);
+      const pct=Math.round(act.a3*100);
+      const o=document.getElementById('outNum'); o.textContent=pct+'%'; o.style.color = pct>=50?'var(--nhs-red)':'var(--nhs-green)';
+      const msg=document.getElementById('trainMsg'); msg.style.display='block';
+      msg.innerHTML=`🎓 After training, average error is <strong>${avgError().toFixed(3)}</strong>. The weights (line colours/thickness) across <strong>both hidden layers</strong> have changed — that's the network learning. Keep pressing to train more, or reset to watch it start over.`;
+      btn.disabled=false;
+    }
+  })();
+}
+function resetNet(){
+  seeded(); updateError(); drawNet(null);
+  document.getElementById('outNum').textContent='—';
+  document.getElementById('trainMsg').style.display='none';
+}
+
+// init
+buildInputs(); drawNet(null); updateError();
+</script>
+</body>
+</html>
