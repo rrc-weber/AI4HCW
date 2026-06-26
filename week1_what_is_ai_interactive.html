@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Is AI? Cutting Through the Noise — A Guide for Healthcare Workers</title>
+<style>
+  :root {
+    --nhs-blue: #005EB8;
+    --nhs-dark-blue: #003087;
+    --nhs-light-blue: #41B6E6;
+    --nhs-green: #009639;
+    --nhs-warm-yellow: #FFB81C;
+    --nhs-red: #DA291C;
+    --nhs-grey: #425563;
+    --nhs-light-grey: #F0F4F5;
+    --text-dark: #212B32;
+    --text-mid: #4C6272;
+    --white: #ffffff;
+    --border: #D8DDE0;
+    --radius: 8px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.10);
+    --shadow-hover: 0 4px 16px rgba(0,94,184,0.18);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Frutiger', Arial, Helvetica, sans-serif;
+    background: #f5f7fa;
+    color: var(--text-dark);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  /* Header */
+  .hero {
+    background: linear-gradient(135deg, var(--nhs-dark-blue) 0%, var(--nhs-blue) 60%, var(--nhs-light-blue) 100%);
+    color: white;
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 46px);
+    font-weight: 700;
+    margin-bottom: 12px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    position: relative;
+  }
+  .hero p {
+    font-size: 18px;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .progress-bar-wrap {
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    height: 6px;
+    max-width: 300px;
+    margin: 24px auto 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--nhs-warm-yellow);
+    border-radius: 20px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+  .progress-label {
+    font-size: 13px;
+    opacity: 0.85;
+    margin-top: 6px;
+    position: relative;
+  }
+  /* Nav tabs */
+  .tab-nav {
+    display: flex;
+    overflow-x: auto;
+    background: white;
+    border-bottom: 2px solid var(--border);
+    padding: 0 16px;
+    gap: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+  }
+  .tab-nav::-webkit-scrollbar { height: 3px; }
+  .tab-nav::-webkit-scrollbar-thumb { background: var(--nhs-light-blue); }
+  .tab-btn {
+    padding: 14px 18px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-mid);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab-btn:hover { color: var(--nhs-blue); }
+  .tab-btn.active {
+    color: var(--nhs-blue);
+    border-bottom-color: var(--nhs-blue);
+  }
+  .tab-btn .tab-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--nhs-light-grey);
+    color: var(--text-mid);
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .tab-btn.active .tab-num {
+    background: var(--nhs-blue);
+    color: white;
+  }
+  .tab-btn.done .tab-num {
+    background: var(--nhs-green);
+    color: white;
+  }
+  .tab-btn.done .tab-num::after { content: '✓'; }
+  /* Main content */
+  .main { max-width: 880px; margin: 0 auto; padding: 32px 16px 60px; }
+  .section { display: none; animation: fadeIn 0.3s ease; }
+  .section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  /* Cards */
+  .card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--nhs-dark-blue);
+    margin-bottom: 12px;
+  }
+  .card p { color: var(--text-mid); margin-bottom: 12px; }
+  .card p:last-child { margin-bottom: 0; }
+  .eyebrow { font-size:12px; font-weight:700; color:var(--nhs-blue); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; }
+  /* Info box */
+  .info-box {
+    background: #E8F4FD;
+    border-left: 4px solid var(--nhs-light-blue);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 15px;
+    color: var(--text-dark);
+  }
+  .warning-box {
+    background: #FFF9EC;
+    border-left: 4px solid var(--nhs-warm-yellow);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+  /* Compare: rule-based vs learned */
+  .compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0; }
+  .compare-col { border-radius:var(--radius); padding:18px 20px; }
+  .compare-col.rule { background:#F8FAFC; border:2px solid #475569; }
+  .compare-col.learn { background:#EFF6FF; border:2px solid #1D4ED8; }
+  .compare-col h4 { font-size:15px; font-weight:700; margin-bottom:8px; }
+  .compare-col.rule h4 { color:#475569; }
+  .compare-col.learn h4 { color:#1D4ED8; }
+  .compare-col p { font-size:13.5px; color:var(--text-mid); margin-bottom:8px; }
+  .compare-col code { background:white; border:1px solid var(--border); border-radius:5px; padding:2px 7px; font-size:12.5px; color:var(--text-dark); display:inline-block; }
+  /* Taxonomy grid */
+  .taxonomy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .taxon-card {
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .taxon-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .taxon-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+  .taxon-card.selected { border-color: currentColor; }
+  .taxon-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .taxon-card p { font-size: 13px; margin: 0; }
+  .taxon-card .icon { font-size: 28px; margin-bottom: 10px; }
+  .taxon-card .tap-hint { font-size:11px; font-weight:700; opacity:0.7; margin-top:10px; text-transform:uppercase; letter-spacing:0.04em; }
+  /* AI types colour scheme */
+  .type-ml   { background: #EFF6FF; color: #1D4ED8; } .type-ml::before   { background: #1D4ED8; }
+  .type-dl   { background: #F0FDF4; color: #15803D; } .type-dl::before   { background: #15803D; }
+  .type-nlp  { background: #FFF7ED; color: #C2410C; } .type-nlp::before  { background: #C2410C; }
+  .type-cv   { background: #FDF4FF; color: #7E22CE; } .type-cv::before   { background: #7E22CE; }
+  .type-rule { background: #F8FAFC; color: #475569; } .type-rule::before { background: #475569; }
+  .type-gen  { background: #FFF5F5; color: #B91C1C; } .type-gen::before  { background: #B91C1C; }
+  /* Detail panel */
+  .detail-panel {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px 28px;
+    margin-top: 4px;
+    border-top: 4px solid var(--nhs-blue);
+    display: none;
+  }
+  .detail-panel.open { display: block; animation: fadeIn 0.3s ease; }
+  .detail-panel h3 { font-size: 19px; font-weight: 700; color: var(--nhs-dark-blue); margin-bottom: 10px; }
+  .detail-panel p { color: var(--text-mid); margin-bottom: 10px; font-size:14.5px; }
+  .example-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip {
+    background: var(--nhs-light-grey);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--nhs-dark-blue);
+  }
+  .chip.nhs { background: #E6F0FA; color: var(--nhs-blue); }
+  .chip .chip-tool { font-weight:800; }
+  .detail-panel .action-link, .detail-panel .video-link {
+    display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:700;
+    color:var(--nhs-blue); text-decoration:none; background:#E6F0FA; border:1px solid #cfe0f3;
+    border-radius:20px; padding:7px 15px; margin:4px 6px 4px 0; transition:all .15s;
+  }
+  .detail-panel .action-link:hover, .detail-panel .video-link:hover { background:var(--nhs-blue); color:#fff; }
+  .detail-panel .action-link.game { background:#FFF4E5; border-color:#ffd699; color:#9a5b00; }
+  .detail-panel .action-link.game:hover { background:var(--nhs-warm-yellow); color:#3a2a00; }
+  .learn-block { margin-top:16px; padding-top:14px; border-top:1px dashed var(--border); }
+  .learn-head { font-size:12px; font-weight:700; color:var(--text-mid); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+  .chip.chip-link { text-decoration:none; transition:all .15s; cursor:pointer; }
+  .chip.chip-link:hover { background:var(--nhs-blue); color:#fff; }
+  .resources-block { border-top:1px dashed var(--border); }
+  .resources-note { font-size:12.5px; color:var(--text-mid); font-style:italic; margin-bottom:10px; }
+  /* Tree diagram */
+  .tree { margin: 20px 0; }
+  .tree-root { text-align: center; margin-bottom: 0; }
+  .tree-root-box {
+    display: inline-block;
+    background: var(--nhs-blue);
+    color: white;
+    border-radius: var(--radius);
+    padding: 12px 32px;
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .tree-connector { width: 2px; height: 30px; background: var(--border); margin: 0 auto; }
+  .tree-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 0 8px; }
+  .tree-node {
+    flex: 1; min-width: 120px; max-width: 170px;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dark);
+    position: relative;
+  }
+  .tree-node::before {
+    content: '';
+    position: absolute;
+    top: -16px; left: 50%;
+    transform: translateX(-50%);
+    width: 2px; height: 16px;
+    background: var(--border);
+  }
+  .tree-node-label { font-size: 11px; color: var(--text-mid); font-weight: 400; margin-top: 2px; }
+  /* Match activity */
+  .match-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin: 20px 0; }
+  .match-col h4 { font-size: 13px; font-weight: 700; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+  .match-item {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 13.5px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+  .match-item .tool-name { font-weight: 800; color: var(--nhs-dark-blue); }
+  .match-item:hover { border-color: var(--nhs-light-blue); background: #E8F4FD; }
+  .match-item.selected { border-color: var(--nhs-blue); background: #EBF4FF; }
+  .match-item.matched-correct { border-color: var(--nhs-green); background: #F0FDF4; color: #166534; opacity:0.75; }
+  .match-item.matched-correct .tool-name { color:#166534; }
+  .match-item.matched-wrong { border-color: var(--nhs-red); background: #FFF1F1; animation: shake 0.3s ease; }
+  .type-target.selected { border-color: var(--nhs-blue); background:#EBF4FF; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  .match-feedback { font-size:14px; border-radius:var(--radius); padding:10px 14px; margin-top:6px; display:none; }
+  .match-feedback.show { display:block; animation:fadeIn 0.3s; }
+  .match-feedback.ok { background:#F0FDF4; color:#166534; border-left:4px solid var(--nhs-green); }
+  .match-feedback.no { background:#FFF1F1; color:#991B1B; border-left:4px solid var(--nhs-red); }
+  /* Myth or Fact */
+  .myth-card { background:white; border-radius:var(--radius); box-shadow:var(--shadow); padding:22px 26px; margin-bottom:18px; border-left:4px solid var(--nhs-light-blue); }
+  .myth-claim { font-size:17px; font-weight:700; color:var(--text-dark); margin-bottom:16px; }
+  .myth-quote { font-style:italic; color:var(--text-mid); }
+  .mf-btns { display:flex; gap:12px; }
+  .mf-btn {
+    flex:1; padding:12px 16px; border-radius:var(--radius); border:2px solid var(--border);
+    background:var(--nhs-light-grey); font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s;
+    display:flex; align-items:center; justify-content:center; gap:8px; color:var(--text-dark);
+  }
+  .mf-btn:hover:not(:disabled) { border-color:var(--nhs-light-blue); background:#E8F4FD; }
+  .mf-btn:disabled { cursor:default; }
+  .mf-btn.picked-correct { background:#F0FDF4; border-color:var(--nhs-green); color:#166534; }
+  .mf-btn.picked-wrong { background:#FFF1F1; border-color:var(--nhs-red); color:#991B1B; }
+  .mf-btn.reveal-correct { border-color:var(--nhs-green); color:#166534; }
+  .myth-verdict { display:none; margin-top:14px; border-radius:var(--radius); padding:12px 16px; font-size:14px; animation:fadeIn 0.3s; }
+  .myth-verdict.show { display:block; }
+  .myth-verdict .verdict-tag { display:inline-block; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; font-size:12px; padding:2px 10px; border-radius:20px; margin-bottom:6px; }
+  .myth-verdict.is-myth { background:#FFF1F1; color:#7a1d16; }
+  .myth-verdict.is-myth .verdict-tag { background:var(--nhs-red); color:white; }
+  .myth-verdict.is-fact { background:#F0FDF4; color:#14532d; }
+  .myth-verdict.is-fact .verdict-tag { background:var(--nhs-green); color:white; }
+  .myth-verdict.is-hint { background:#FFF9EC; color:#7a5b00; }
+  /* Quiz */
+  .quiz-question { background: white; border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px 28px; margin-bottom: 20px; }
+  .quiz-q { font-size: 17px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; }
+  .quiz-scenario { background: var(--nhs-light-grey); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px; font-size: 14px; color: var(--text-mid); border-left: 3px solid var(--nhs-light-blue); }
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option-btn {
+    background: var(--nhs-light-grey);
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-dark);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .option-btn:hover:not(:disabled) { border-color: var(--nhs-light-blue); background: #E8F4FD; }
+  .option-btn.correct { background: #F0FDF4; border-color: var(--nhs-green); color: #166534; }
+  .option-btn.wrong   { background: #FFF1F1; border-color: var(--nhs-red); color: #991B1B; }
+  .option-btn .opt-letter {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: white; font-weight: 700; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; border: 1px solid var(--border);
+  }
+  .option-btn.correct .opt-letter { background: var(--nhs-green); color: white; border-color: var(--nhs-green); }
+  .option-btn.wrong   .opt-letter { background: var(--nhs-red); color: white; border-color: var(--nhs-red); }
+  .feedback { border-radius: var(--radius); padding: 12px 16px; margin-top: 12px; font-size: 14px; display: none; }
+  .feedback.show { display: block; animation: fadeIn 0.3s; }
+  .feedback.correct { background: #F0FDF4; color: #166534; border-left: 4px solid var(--nhs-green); }
+  .feedback.wrong   { background: #FFF1F1; color: #991B1B; border-left: 4px solid var(--nhs-red); }
+  /* Score display */
+  .score-display { background: linear-gradient(135deg, var(--nhs-dark-blue), var(--nhs-blue)); color: white; border-radius: var(--radius); padding: 28px; text-align: center; margin: 20px 0; }
+  .score-num { font-size: 56px; font-weight: 700; line-height: 1; }
+  .score-label { font-size: 16px; opacity: 0.85; margin-top: 4px; }
+  .score-msg { font-size: 18px; font-weight: 600; margin-top: 16px; }
+  /* Nav buttons */
+  .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; gap: 12px; }
+  .btn { padding: 12px 28px; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+  .btn-primary { background: var(--nhs-blue); color: white; }
+  .btn-primary:hover { background: var(--nhs-dark-blue); }
+  .btn-secondary { background: white; color: var(--nhs-blue); border-color: var(--nhs-blue); }
+  .btn-secondary:hover { background: #E6F0FA; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* Source note */
+  .source-note { font-size:12px; color:var(--text-mid); margin-top:18px; font-style:italic; }
+  /* Summary */
+  .summary-complete { text-align: center; padding: 40px 20px; }
+  .badge-wrap { font-size: 72px; margin-bottom: 16px; }
+  .key-takeaways { text-align: left; background: white; border-radius: var(--radius); padding: 24px 28px; box-shadow: var(--shadow); }
+  .key-takeaways h3 { font-size: 16px; font-weight: 700; color: var(--nhs-dark-blue); margin-bottom: 14px; }
+  .takeaway { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+  .takeaway-icon { font-size: 20px; flex-shrink: 0; }
+  .takeaway-text { font-size: 14px; color: var(--text-mid); }
+  /* Responsive */
+  @media (max-width: 600px) {
+    .taxonomy-grid { grid-template-columns: 1fr 1fr; }
+    .match-grid { grid-template-columns: 1fr; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .nav-row { flex-direction: column-reverse; }
+    .btn { width: 100%; justify-content: center; }
+    .mf-btns { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">Week 1 · The Landscape · Step 1.3</div>
+  <h1>What Is AI? Cutting Through the Noise</h1>
+  <p>The words behind the hype — and the real NHS tools they describe</p>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+  <p class="progress-label" id="progressLabel">0 of 5 sections complete</p>
+</div>
+
+<!-- NAV TABS -->
+<nav class="tab-nav" role="tablist">
+  <button class="tab-btn active" onclick="goTo(0)" id="tab0"><span class="tab-num" id="tnum0">1</span> The Big Idea</button>
+  <button class="tab-btn" onclick="goTo(1)" id="tab1"><span class="tab-num" id="tnum1">2</span> Types of AI</button>
+  <button class="tab-btn" onclick="goTo(2)" id="tab2"><span class="tab-num" id="tnum2">3</span> Match the NHS Tool</button>
+  <button class="tab-btn" onclick="goTo(3)" id="tab3"><span class="tab-num" id="tnum3">4</span> Myth or Fact?</button>
+  <button class="tab-btn" onclick="goTo(4)" id="tab4"><span class="tab-num" id="tnum4">5</span> Test Yourself</button>
+</nav>
+
+<main class="main">
+
+<!-- ═══════════════════════════════ SECTION 1 — THE BIG IDEA ═══ -->
+<section class="section active" id="sec0">
+  <div class="card">
+    <div class="eyebrow">Start here</div>
+    <div class="card-title">"AI" is one word doing a lot of jobs</div>
+    <p>You hear it everywhere — in the news, from suppliers, from colleagues. But "AI" is an umbrella term covering very different technologies. Some are decades old and sit quietly in systems you already use. Others arrived in the last few years and are still being tested.</p>
+    <p>At its simplest: <strong>artificial intelligence is software that performs tasks we'd normally expect to need human intelligence</strong> — spotting patterns, understanding language, making predictions, or generating content.</p>
+    <div class="info-box">
+      💡 <strong>A useful picture:</strong> think of most modern AI as a very fast, very thorough pattern-matcher. It learns by example, finding signals in large amounts of data that a person might miss or take far too long to spot by hand.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">The one distinction that explains everything</div>
+    <p>Before the jargon, there is a single split that the rest of this step builds on: <strong>who wrote the rules?</strong></p>
+    <div class="compare-grid">
+      <div class="compare-col rule">
+        <h4>📋 Rules written by a human</h4>
+        <p>A person decides the logic in advance and codes it in. Predictable and easy to audit.</p>
+        <code>IF NEWS2 score ≥ 5 → escalate</code>
+        <p style="margin-top:8px;">This is a <strong>rule-based system</strong>. The computer never "learns" — it just follows instructions.</p>
+      </div>
+      <div class="compare-col learn">
+        <h4>🧠 Rules learned from data</h4>
+        <p>Instead of being told the rules, the software is shown thousands of examples and works out the patterns itself.</p>
+        <code>Show 100,000 X-rays → learn what pneumonia looks like</code>
+        <p style="margin-top:8px;">This is <strong>machine learning</strong> — the engine behind almost all the "new" AI.</p>
+      </div>
+    </div>
+    <p>Hold onto this. Everything in the next section is really just answering: <em>did a human write the rule, or did the machine learn it — and from what?</em></p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Three things to keep in mind</div>
+    <div class="warning-box"><strong>🚫 AI is not conscious or self-aware.</strong> It has no understanding, goals, or feelings. It processes patterns — nothing more.</div>
+    <div class="warning-box"><strong>🚫 AI does not always know when it is wrong.</strong> It can produce confident, fluent, incorrect answers. That is a patient-safety issue, not a quirk.</div>
+    <div class="warning-box"><strong>🚫 AI is not a replacement for clinical judgement.</strong> It is a tool. You remain responsible for the care you provide.</div>
+  </div>
+
+  <div class="nav-row">
+    <div></div>
+    <button class="btn btn-primary" onclick="goTo(1)">See the types of AI →</button>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ SECTION 2 — THE FAMILY ═══ -->
+<section class="section" id="sec1">
+  <div class="card">
+    <div class="card-title">The main types of AI</div>
+    <p>AI is a broad title for a number of more specific technologies. <strong>Click any card</strong> to see a plain-English definition, a short explainer video, and the real, named NHS tools that use it.</p>
+  </div>
+
+  <div class="taxonomy-grid" id="taxGrid">
+    <div class="taxon-card type-rule" onclick="showDetail('rule')">
+      <div class="icon">📋</div><h3>Rule-Based Systems</h3><p>Human-written if-then logic.</p><div class="tap-hint">Tap to explore</div>
+    </div>
+    <div class="taxon-card type-ml" onclick="showDetail('ml')">
+      <div class="icon">🧠</div><h3>Machine Learning</h3><p>Learns patterns from data.</p><div class="tap-hint">Tap to explore</div>
+    </div>
+    <div class="taxon-card type-dl" onclick="showDetail('dl')">
+      <div class="icon">🔬</div><h3>Deep Learning</h3><p>The powerful engine inside ML.</p><div class="tap-hint">Tap to explore</div>
+    </div>
+    <div class="taxon-card type-cv" onclick="showDetail('cv')">
+      <div class="icon">👁️</div><h3>Computer Vision</h3><p>AI that reads images & scans.</p><div class="tap-hint">Tap to explore</div>
+    </div>
+    <div class="taxon-card type-nlp" onclick="showDetail('lang')">
+      <div class="icon">💬</div><h3>Language AI: NLP &amp; LLMs</h3><p>Reads, understands &amp; writes language.</p><div class="tap-hint">Tap to explore</div>
+    </div>
+  </div>
+
+  <div class="detail-panel" id="detailPanel"></div>
+
+  <div class="nav-row">
+    <button class="btn btn-secondary" onclick="goTo(0)">← The Big Idea</button>
+    <button class="btn btn-primary" onclick="goTo(2)">Match real NHS tools →</button>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ SECTION 3 — MATCH ═══ -->
+<section class="section" id="sec2">
+  <div class="card">
+    <div class="card-title">Match the real NHS tool to its type of AI</div>
+    <p>Every tool on the left is genuinely in use or in large-scale trials across NHS services. <strong>Tap a tool, then tap the family it belongs to.</strong></p>
+    <div class="info-box">Note: 👁️ Computer Vision tools run on 🔬 Deep Learning under the bonnet — so here, match each tool to the family that best describes <em>what it does</em>.</div>
+  </div>
+
+  <div class="card">
+    <div class="match-grid">
+      <div class="match-col">
+        <h4>Real NHS tools</h4>
+        <div class="match-item" id="me1" data-key="lang" onclick="matchPickExample('me1')"><span class="tool-name">TORTUS ambient scribe</span> — listens to a consultation and drafts the clinic note &amp; letter</div>
+        <div class="match-item" id="me2" data-key="rule" onclick="matchPickExample('me2')"><span class="tool-name">NEWS2 deterioration alert</span> — flags a patient when the early-warning score crosses a threshold</div>
+        <div class="match-item" id="me3" data-key="ml" onclick="matchPickExample('me3')"><span class="tool-name">Deep Medical</span> — predicts which patients will miss appointments and offers back-up slots</div>
+        <div class="match-item" id="me4" data-key="cv" onclick="matchPickExample('me4')"><span class="tool-name">Skin Analytics DERM</span> — triages photographs of skin lesions for cancer</div>
+        <div class="match-item" id="me5" data-key="lang" onclick="matchPickExample('me5')"><span class="tool-name">Clinical coding from notes</span> — pulls diagnoses & symptoms out of free-text records</div>
+        <div class="match-item" id="me6" data-key="ml" onclick="matchPickExample('me6')"><span class="tool-name">C2-Ai</span> — risk-stratifies the surgical waiting list by likelihood of complications</div>
+        <div class="match-item" id="me7" data-key="cv" onclick="matchPickExample('me7')"><span class="tool-name">Brainomix e-Stroke</span> — analyses brain CT scans in acute stroke</div>
+        <div class="match-item" id="me8" data-key="rule" onclick="matchPickExample('me8')"><span class="tool-name">Drug–allergy alert</span> — warns you before prescribing something a patient reacts to</div>
+      </div>
+      <div class="match-col">
+        <h4>AI families</h4>
+        <div class="match-item type-target" id="mt-rule" data-key="rule" onclick="matchPickType('mt-rule')">📋 Rule-Based System</div>
+        <div class="match-item type-target" id="mt-cv" data-key="cv" onclick="matchPickType('mt-cv')">👁️ Computer Vision</div>
+        <div class="match-item type-target" id="mt-lang" data-key="lang" onclick="matchPickType('mt-lang')">💬 Language AI (NLP &amp; LLMs)</div>
+        <div class="match-item type-target" id="mt-ml" data-key="ml" onclick="matchPickType('mt-ml')">🧠 Machine Learning</div>
+      </div>
+    </div>
+    <div class="match-feedback" id="matchFb"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+      <div id="matchScore" style="font-size:15px;font-weight:700;color:var(--nhs-green);"></div>
+      <button class="btn btn-secondary" onclick="resetMatch()" style="padding:8px 18px;font-size:13px;">↺ Reset</button>
+    </div>
+    <p class="source-note">Tools shown are real NHS deployments or national trials (Skin Analytics DERM, Brainomix e-Stroke, Deep Medical, C2-Ai, TORTUS). NEWS2 and drug-allergy alerts are standard rule-based clinical systems.</p>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn btn-secondary" onclick="goTo(1)">← Types of AI</button>
+    <button class="btn btn-primary" onclick="goTo(3)">Bust some myths →</button>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ SECTION 4 — MYTH OR FACT ═══ -->
+<section class="section" id="sec3">
+  <div class="card" style="border-top:4px solid var(--nhs-warm-yellow);">
+    <div class="card-title">Myth or Fact?</div>
+    <p>A lot of what we "know" about AI comes from headlines. Decide whether each statement is a <strong>myth</strong> or a <strong>fact</strong> — then see the reasoning.</p>
+    <div id="mythRunningScore" style="font-size:14px;font-weight:700;color:var(--nhs-blue);margin-top:6px;"></div>
+  </div>
+  <div id="mythContainer"></div>
+  <div class="nav-row">
+    <button class="btn btn-secondary" onclick="goTo(2)">← Match the NHS Tool</button>
+    <button class="btn btn-primary" onclick="goTo(4)">Test yourself →</button>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ SECTION 5 — QUIZ ═══ -->
+<section class="section" id="sec4">
+  <div class="card" style="border-top:4px solid var(--nhs-warm-yellow);">
+    <div class="card-title">Check your understanding</div>
+    <p>Five short scenarios to pull it all together. Pick the best answer for each.</p>
+  </div>
+
+  <div class="quiz-question" id="qq1">
+    <div class="quiz-q">1. What is the fundamental difference between a rule-based system and machine learning?</div>
+    <div class="options">
+      <button class="option-btn" onclick="answer(this,'qq1',false,'Both can be fast or slow — speed isn\'t the dividing line.')"><span class="opt-letter">A</span> Machine learning is always faster</button>
+      <button class="option-btn" onclick="answer(this,'qq1',true,'Exactly. In a rule-based system a human writes the logic in advance; in machine learning the software learns the patterns from data. That single difference drives everything else — including why ML needs validating on your population.')"><span class="opt-letter">B</span> A human writes the rules in a rule-based system; ML learns its rules from data</button>
+      <button class="option-btn" onclick="answer(this,'qq1',false,'Both run on ordinary NHS hardware. The difference is how the logic is created.')"><span class="opt-letter">C</span> Rule-based systems need special hardware</button>
+      <button class="option-btn" onclick="answer(this,'qq1',false,'Rule-based systems can absolutely be wrong if the rule is poor. The real difference is who created the logic.')"><span class="opt-letter">D</span> Rule-based systems are never wrong</button>
+    </div>
+    <div class="feedback" id="fb-qq1"></div>
+  </div>
+
+  <div class="quiz-question" id="qq2">
+    <div class="quiz-q">2. Brainomix e-Stroke analyses a brain CT to support stroke decisions. Which type of AI best describes what it does?</div>
+    <div class="options">
+      <button class="option-btn" onclick="answer(this,'qq2',false,'NLP works with language and text, not images.')"><span class="opt-letter">A</span> Natural Language Processing</button>
+      <button class="option-btn" onclick="answer(this,'qq2',true,'Correct. Interpreting a scan is Computer Vision — and under the bonnet it runs on deep learning. Both answers are &quot;true&quot;, but the family that describes what the tool does is computer vision.')"><span class="opt-letter">B</span> Computer Vision (powered by deep learning)</button>
+      <button class="option-btn" onclick="answer(this,'qq2',false,'Generative AI creates new content. This tool is analysing an existing image, not generating one.')"><span class="opt-letter">C</span> Generative AI</button>
+      <button class="option-btn" onclick="answer(this,'qq2',false,'A rule-based system follows fixed thresholds. Spotting subtle stroke changes on CT needs learned pattern recognition.')"><span class="opt-letter">D</span> Rule-Based System</button>
+    </div>
+    <div class="feedback" id="fb-qq2"></div>
+  </div>
+
+  <div class="quiz-question" id="qq3">
+    <div class="quiz-q">3. Your trust is trialling an ambient AI scribe (like TORTUS) that drafts your clinic notes. The draft reads beautifully. What matters most?</div>
+    <div class="quiz-scenario">📋 The tool listens to the consultation and produces a fluent, professional note and letter for you to save to the record.</div>
+    <div class="options">
+      <button class="option-btn" onclick="answer(this,'qq3',false,'Fluent does not mean accurate. Generative tools can produce confident, well-written errors.')"><span class="opt-letter">A</span> If it reads well, it's safe to save as-is</button>
+      <button class="option-btn" onclick="answer(this,'qq3',true,'Right. Generative AI can &quot;hallucinate&quot; — inventing plausible but wrong detail. You review and correct every clinical claim before it enters the record, and accountability for the note stays with you.')"><span class="opt-letter">B</span> Review every clinical detail before saving — you remain responsible for the note</button>
+      <button class="option-btn" onclick="answer(this,'qq3',false,'The tool can\'t reliably flag its own mistakes — that\'s the whole problem with confident errors.')"><span class="opt-letter">C</span> Only check the parts the tool flags as uncertain</button>
+      <button class="option-btn" onclick="answer(this,'qq3',false,'Refusing all such tools isn\'t the lesson — used with review they can save real time. Unchecked use is the risk.')"><span class="opt-letter">D</span> Never use AI for documentation at all</button>
+    </div>
+    <div class="feedback" id="fb-qq3"></div>
+  </div>
+
+  <div class="quiz-question" id="qq4">
+    <div class="quiz-q">4. A NEWS2 alert and a tool like Deep Medical are both called "AI" in a meeting. What's the accurate distinction?</div>
+    <div class="options">
+      <button class="option-btn" onclick="answer(this,'qq4',false,'They aren\'t the same kind of thing — that\'s exactly the point of this step.')"><span class="opt-letter">A</span> They're the same technology with different names</button>
+      <button class="option-btn" onclick="answer(this,'qq4',true,'Spot on. NEWS2 is a rule-based system — humans set the thresholds. Deep Medical is machine learning — it learned its predictions from data. Knowing which is which changes the questions you should ask.')"><span class="opt-letter">B</span> NEWS2 is rule-based (human thresholds); Deep Medical is machine learning (learned from data)</button>
+      <button class="option-btn" onclick="answer(this,'qq4',false,'It\'s the other way round — NEWS2 is the rule-based one and Deep Medical is the learning one.')"><span class="opt-letter">C</span> NEWS2 is machine learning; Deep Medical is rule-based</button>
+      <button class="option-btn" onclick="answer(this,'qq4',false,'Neither is generative — they predict or flag, they don\'t create new content.')"><span class="opt-letter">D</span> Both are generative AI</button>
+    </div>
+    <div class="feedback" id="fb-qq4"></div>
+  </div>
+
+  <div class="quiz-question" id="qq5">
+    <div class="quiz-q">5. A colleague says "AI will replace clinicians soon — it can already do everything." Which reply best reflects today's reality?</div>
+    <div class="options">
+      <button class="option-btn" onclick="answer(this,'qq5',false,'This overstates it. No clinical AI today generalises across tasks the way a clinician does.')"><span class="opt-letter">A</span> "Yes — it's only a matter of time."</button>
+      <button class="option-btn" onclick="answer(this,'qq5',false,'This dismisses real, evidenced capabilities — these tools genuinely help in specific tasks.')"><span class="opt-letter">B</span> "It's all hype — AI can't do anything useful."</button>
+      <button class="option-btn" onclick="answer(this,'qq5',true,'This is the accurate, nuanced view. Every clinical AI in NHS use today is narrow — excellent at one defined task, unable to generalise. It augments clinicians; it doesn\'t replace clinical reasoning, context or responsibility.')"><span class="opt-letter">C</span> "Today's AI is narrow — strong at specific tasks, but it can't generalise or carry clinical responsibility the way we do."</button>
+      <button class="option-btn" onclick="answer(this,'qq5',false,'Accountability matters, but this dodges the inaccurate &quot;replace everyone&quot; claim itself.')"><span class="opt-letter">D</span> "Fine, as long as someone stays legally responsible."</button>
+    </div>
+    <div class="feedback" id="fb-qq5"></div>
+  </div>
+
+  <div id="quizResults" style="display:none;">
+    <div class="score-display">
+      <div class="score-num" id="scoreNum">0/5</div>
+      <div class="score-label">correct on the first try</div>
+      <div class="score-msg" id="scoreMsg"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Key takeaways</div>
+      <div class="takeaway"><div class="takeaway-icon">📋</div><div class="takeaway-text"><strong>The core split:</strong> did a human write the rule (rule-based, like NEWS2) or did the machine learn it from data (machine learning, like Deep Medical)?</div></div>
+      <div class="takeaway"><div class="takeaway-icon">🪆</div><div class="takeaway-text"><strong>They're nested, not rival.</strong> Deep learning sits inside machine learning and powers most computer vision, NLP and generative tools.</div></div>
+      <div class="takeaway"><div class="takeaway-icon">🏥</div><div class="takeaway-text"><strong>It's already here.</strong> DERM, e-Stroke, Mia, GI Genius, Deep Medical, C2-Ai and ambient scribes are real NHS examples — not science fiction.</div></div>
+      <div class="takeaway"><div class="takeaway-icon">🎯</div><div class="takeaway-text"><strong>All NHS clinical AI today is narrow</strong> — brilliant at one task, unable to generalise. General AI does not exist.</div></div>
+      <div class="takeaway"><div class="takeaway-icon">⚕️</div><div class="takeaway-text"><strong>Responsibility stays with you.</strong> Knowing the type of AI helps you ask the right safety and validation questions.</div></div>
+    </div>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn btn-secondary" onclick="goTo(3)">← Myth or Fact</button>
+    <button class="btn btn-primary" id="retryBtn" onclick="retryQuiz()" style="display:none;">↺ Retry Quiz</button>
+  </div>
+</section>
+
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+const NUM_SECTIONS = 5;
+let currentSection = 0;
+const sectionDone = [false, false, false, false, false];
+let quizScore = 0;
+const qDone = {};   // qid -> answered correctly (locked)
+const qWrong = {};  // qid -> a wrong answer was tried first
+
+// ── Navigation ─────────────────────────────────────────────────
+function goTo(idx) {
+  document.getElementById('sec' + currentSection).classList.remove('active');
+  document.getElementById('tab' + currentSection).classList.remove('active');
+  if (!sectionDone[currentSection] && currentSection !== 4) {
+    sectionDone[currentSection] = true;
+    updateTab(currentSection);
+  }
+  currentSection = idx;
+  document.getElementById('sec' + idx).classList.add('active');
+  document.getElementById('tab' + idx).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateProgress();
+}
+function updateTab(idx) {
+  document.getElementById('tab' + idx).classList.add('done');
+  document.getElementById('tnum' + idx).textContent = '';
+}
+function updateProgress() {
+  const done = sectionDone.filter(Boolean).length;
+  document.getElementById('progressBar').style.width = (done / NUM_SECTIONS * 100) + '%';
+  document.getElementById('progressLabel').textContent = done + ' of ' + NUM_SECTIONS + ' sections complete';
+}
+
+// ── AI Family details ──────────────────────────────────────────
+// chip = [tool, description, sourceURL]  · resources = [[label, url], ...]
+const details = {
+  rule: {
+    title: '📋 Rule-Based Systems',
+    body: `The oldest and most transparent form of "AI". A human expert writes explicit <strong>if-then</strong> rules and the computer simply follows them. It never learns — it does exactly what it was told, every time. That makes it predictable and easy to audit, which is why so much of the clinical software you already use is rule-based.<br><br><strong>Ask:</strong> who set the thresholds, and are they still clinically appropriate?`,
+    game: `<a class="action-link game" href="rule-based-logic-game.html" target="_blank" rel="noopener">Play: Follow the Logic — step through a rule engine, line by line →</a>`,
+    chips: [
+      ['NEWS2','deterioration alerts','https://www.rcp.ac.uk/improving-care/resources/national-early-warning-score-news-2/'],
+      ['Drug–allergy &amp; interaction','warnings'],
+      ['Contraindication','prompts in the EPR'],
+      ['Care-pathway','decision support']
+    ]
+  },
+  ml: {
+    title: '🧠 Machine Learning',
+    body: `The foundation of almost all modern AI. Rather than being told the rules, the software is shown large amounts of data and works out the patterns itself. It's especially good at <strong>prediction</strong> — estimating what is likely to happen from past examples.<br><br>Machine learning comes in three main styles: <strong>supervised</strong> (learns from labelled examples), <strong>unsupervised</strong> (finds patterns in unlabelled data) and <strong>reinforcement</strong> (learns by trial, reward and error).<br><br><strong>Ask:</strong> what data was it trained on, and does that data look like our patients?`,
+    game: `<a class="action-link game" href="supervised-unsupervised-task.html" target="_blank" rel="noopener">Play: Cats &amp; Dogs — how machines learn (supervised vs unsupervised) →</a>`,
+    resources: [
+      ['What is Machine Learning? — IBM', 'https://www.ibm.com/think/topics/machine-learning'],
+      ['Supervised vs Unsupervised learning — IBM (video)', 'https://www.youtube.com/watch?v=W01tIRP_Rqs'],
+      ['Reinforcement learning — IBM', 'https://www.ibm.com/think/topics/reinforcement-learning']
+    ],
+    chips: [
+      ['Deep Medical','predicts missed appointments','https://www.england.nhs.uk/2024/03/nhs-ai-expansion-to-help-tackle-missed-appointments-and-improve-waiting-times/'],
+      ['C2-Ai','surgical risk stratification','https://www.england.nhs.uk/north-west/recovery-bulletin/recovery-bulletin-issue-02-august-2022/risk-stratification-of-waiting-lists-in-cheshire-merseyside/'],
+      ['Bed &amp; demand','forecasting'],
+      ['Readmission-risk','prediction']
+    ]
+  },
+  dl: {
+    title: '🔬 Deep Learning',
+    body: `A powerful <em>type</em> of machine learning, loosely inspired by the brain. It stacks many layers of artificial "neurons" — hence <em>deep</em> — to learn very subtle patterns. It's the engine behind almost everything that can "see" or "read", and it's why clinical imaging AI took off.<br><br>You rarely buy "deep learning" on its own — you meet it <strong>inside</strong> computer vision and language tools.`,
+    game: `<a class="action-link game" href="deep-learning-game.html" target="_blank" rel="noopener">Play: Watch a Neural Network Fire — forward pass &amp; training →</a>`,
+    resources: [['What is Deep Learning? — IBM', 'https://www.ibm.com/think/topics/deep-learning']],
+    chips: [
+      ['Skin Analytics DERM','skin lesions','https://www.nice.org.uk/guidance/htg746/chapter/2-The-technologies'],
+      ['Brainomix e-Stroke','brain CT','https://www.nice.org.uk/guidance/dg57'],
+      ['Mia (Kheiron)','mammograms','https://www.nihr.ac.uk/news/ai-be-trialled-across-nhs-screening-speed-disease-diagnosis'],
+      ['GI Genius','colonoscopy','https://clinicaltrials.gov/study/NCT04723758']
+    ]
+  },
+  cv: {
+    title: '👁️ Computer Vision',
+    body: `AI that interprets images and video — X-rays, CT and MRI scans, photographs, endoscopy and pathology slides. In practice almost all clinical computer vision runs on deep learning. It's the most mature area of NHS clinical AI, with several tools approved as medical devices and in routine use or large trials.<br><br><strong>Ask:</strong> was it trained on a population like ours, and is there always a clinician second-read?`,
+    game: `<a class="action-link game" href="computer-vision-game.html" target="_blank" rel="noopener">Play: Images Are Just Numbers — pixels &amp; filters →</a>`,
+    resources: [['What is Computer Vision? — IBM', 'https://www.ibm.com/think/topics/computer-vision']],
+    chips: [
+      ['Skin Analytics DERM','teledermatology triage','https://www.nice.org.uk/guidance/htg746/chapter/2-The-technologies'],
+      ['Brainomix e-Stroke','stroke CT','https://www.nice.org.uk/guidance/dg57'],
+      ['Annalise / chest X-ray','AI second read','https://www.leedsth.nhs.uk/news/new-ai-chest-x-ray-software-to-speed-up-diagnosis-and-improve-patient-care-at-leeds/'],
+      ['Mia (Kheiron)','breast screening','https://www.nihr.ac.uk/news/ai-be-trialled-across-nhs-screening-speed-disease-diagnosis'],
+      ['GI Genius','polyp detection','https://clinicaltrials.gov/study/NCT04723758']
+    ]
+  },
+  lang: {
+    title: '💬 Language AI: NLP &amp; LLMs',
+    body: `AI that works with human language. <strong>Natural Language Processing (NLP)</strong> is the broad field — reading, understanding and structuring text, turning the words trapped in notes, letters and triage messages into data systems can use. <strong>Large Language Models (LLMs)</strong> — the technology behind tools like ChatGPT — are the powerful new engine that now drives most of it, and can also <em>generate</em> new text: drafting letters, summarising, answering questions.<br><br>In short: NLP <strong>reads</strong>, LLMs also <strong>write</strong>.<br><br><strong>Key risk — hallucination:</strong> generative models can produce fluent, confident, factually wrong output, so human review is essential for any clinical use.`,
+    game: `<a class="action-link game" href="language-ai-game.html" target="_blank" rel="noopener">Play: How Language AI Reads &amp; Writes — tokens, embeddings &amp; temperature →</a>`,
+    resources: [
+      ['What is NLP? — IBM', 'https://www.ibm.com/think/topics/natural-language-processing'],
+      ['What are Large Language Models? — IBM', 'https://www.ibm.com/think/topics/large-language-models']
+    ],
+    chips: [
+      ['TORTUS','ambient scribe (writes notes)','https://www.gosh.nhs.uk/news/researchgosh-led-trial-of-ai-scribe-technology-shows-transformative-benefits-for-patients-and-clinicians-across-london/'],
+      ['Heidi / Accurx Scribe','consultation notes'],
+      ['Clinical coding','reads free-text notes'],
+      ['Symptom extraction','from triage text'],
+      ['Patient-facing','Q&amp;A chatbots']
+    ]
+  }
+};
+let openDetail = null;
+function chipHTML(c) {
+  const inner = `<span class="chip-tool">${c[0]}</span> · ${c[1]}`;
+  return c[2]
+    ? `<a class="chip nhs chip-link" href="${c[2]}" target="_blank" rel="noopener" title="Opens NICE / NHS source in a new tab">${inner} ↗</a>`
+    : `<span class="chip nhs">${inner}</span>`;
+}
+function showDetail(key) {
+  const panel = document.getElementById('detailPanel');
+  const d = details[key];
+  if (openDetail === key) { panel.classList.remove('open'); openDetail = null; return; }
+  openDetail = key;
+  const gameHTML = d.game ? `
+    <div class="learn-block">
+      <div class="learn-head">🎮 Learn by doing</div>
+      ${d.game}
+    </div>` : '';
+  const resourcesHTML = d.resources ? `
+    <div class="learn-block resources-block">
+      <div class="learn-head">📚 Further resources — optional</div>
+      <p class="resources-note">Just for interest, if you'd like a deeper, general explanation. These are external (non-NHS) sites and are <strong>not required</strong> for the course.</p>
+      ${d.resources.map(r=>`<a class="action-link" href="${r[1]}" target="_blank" rel="noopener">${r[0]} ↗</a>`).join('')}
+    </div>` : '';
+  panel.innerHTML = `
+    <h3>${d.title}</h3>
+    <p>${d.body}</p>
+    ${gameHTML}
+    <div class="learn-block">
+      <div class="learn-head">Real NHS examples — tap to read the NICE / NHS source</div>
+      <div class="example-chips">${d.chips.map(chipHTML).join('')}</div>
+    </div>
+    ${resourcesHTML}`;
+  panel.classList.add('open');
+  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+// ── Match Activity (types do NOT lock; many examples → one family) ─
+const familyName = { rule:'Rule-Based System', ml:'Machine Learning', cv:'Computer Vision', lang:'Language AI (NLP & LLMs)' };
+let selExample = null, selType = null, matchCorrect = 0;
+const TOTAL_MATCH = 8;
+
+function clearSel() {
+  if (selExample) document.getElementById(selExample).classList.remove('selected');
+  if (selType) document.getElementById(selType).classList.remove('selected');
+}
+function matchPickExample(id) {
+  const el = document.getElementById(id);
+  if (el.classList.contains('matched-correct')) return;
+  if (selExample) document.getElementById(selExample).classList.remove('selected');
+  selExample = id; el.classList.add('selected');
+  tryMatch();
+}
+function matchPickType(id) {
+  if (selType) document.getElementById(selType).classList.remove('selected');
+  selType = id; document.getElementById(id).classList.add('selected');
+  tryMatch();
+}
+function tryMatch() {
+  if (!selExample || !selType) return;
+  const exEl = document.getElementById(selExample);
+  const tyEl = document.getElementById(selType);
+  const fb = document.getElementById('matchFb');
+  if (exEl.dataset.key === tyEl.dataset.key) {
+    exEl.classList.remove('selected'); exEl.classList.add('matched-correct');
+    tyEl.classList.remove('selected');
+    matchCorrect++;
+    document.getElementById('matchScore').textContent = matchCorrect + ' / ' + TOTAL_MATCH + ' matched ✓';
+    fb.className = 'match-feedback show ok';
+    fb.innerHTML = '✅ Correct — that belongs to <strong>' + familyName[tyEl.dataset.key] + '</strong>.';
+    if (matchCorrect === TOTAL_MATCH) fb.innerHTML += ' 🎉 All matched! Notice the two rule-based and two machine-learning tools — same family, different jobs.';
+  } else {
+    exEl.classList.add('matched-wrong'); tyEl.classList.add('matched-wrong');
+    fb.className = 'match-feedback show no';
+    fb.innerHTML = '❌ Not quite. Think about <em>what that tool actually does</em> — then try again.';
+    setTimeout(()=>{ exEl.classList.remove('selected','matched-wrong'); tyEl.classList.remove('selected','matched-wrong'); }, 700);
+  }
+  selExample = null; selType = null;
+}
+function resetMatch() {
+  selExample = null; selType = null; matchCorrect = 0;
+  document.getElementById('matchScore').textContent = '';
+  document.getElementById('matchFb').className = 'match-feedback';
+  document.querySelectorAll('#sec2 .match-item').forEach(el => {
+    el.classList.remove('selected','matched-correct','matched-wrong');
+  });
+}
+
+// ── Myth or Fact ───────────────────────────────────────────────
+const myths = [
+  { claim:'"AI will soon replace doctors and nurses."', isMyth:true,
+    verdict:'Every clinical AI in NHS use today is <strong>narrow</strong> — expert at one defined task and unable to generalise. It augments clinicians by handling specific, repetitive or pattern-heavy work; it cannot replace clinical reasoning, context, communication or responsibility.' },
+  { claim:'"If an AI tool sounds confident and fluent, its answer is probably right."', isMyth:true,
+    verdict:'Fluency is not accuracy. Generative tools in particular can <strong>hallucinate</strong> — producing confident, well-written, factually wrong output — and they don\'t reliably know when they\'re wrong. Always verify clinical content.' },
+  { claim:'"Some \'AI\' in the NHS is really just human-written rules, not learning at all."', isMyth:false,
+    verdict:'True. Many everyday alerts — NEWS2 escalation, drug–allergy warnings — are <strong>rule-based systems</strong>. A human set the logic; nothing is learned. They\'re still useful, just a different (and more transparent) kind of tool.' },
+  { claim:'"Once an AI tool is approved, it works equally well for every patient group."', isMyth:true,
+    verdict:'Performance depends on the data it learned from. A tool trained on one population can be <strong>less accurate</strong> for under-represented groups — a key reason NHS tools need validating locally and monitoring over time.' },
+  { claim:'"Tools like Skin Analytics DERM and Brainomix e-Stroke are already used in NHS care."', isMyth:false,
+    verdict:'True. These are real deployments — DERM in teledermatology triage and e-Stroke for acute stroke CT across NHS networks — typically alongside, not instead of, clinician review.' },
+  { claim:'"Using an AI scribe means the AI is now responsible for what\'s in the note."', isMyth:true,
+    verdict:'No. Accountability stays with the <strong>clinician</strong>. An ambient scribe drafts; you review, correct and sign off. The professional and legal responsibility for the record does not transfer to the tool.' }
+];
+let mythCorrect = 0;
+const mythDone = {};   // i -> answered correctly (locked)
+const mythWrong = {};  // i -> a wrong answer was tried first
+function renderMyths() {
+  const c = document.getElementById('mythContainer');
+  c.innerHTML = myths.map((m,i)=>`
+    <div class="myth-card" id="myth${i}">
+      <div class="myth-claim"><span class="myth-quote">${m.claim}</span></div>
+      <div class="mf-btns">
+        <button class="mf-btn" id="myth${i}-myth" onclick="answerMyth(${i},true)">🚫 Myth</button>
+        <button class="mf-btn" id="myth${i}-fact" onclick="answerMyth(${i},false)">✅ Fact</button>
+      </div>
+      <div class="myth-verdict" id="myth${i}-v">
+        <span class="verdict-tag"></span>
+        <div class="verdict-body"></div>
+      </div>
+    </div>`).join('');
+  updateMythScore();
+}
+function answerMyth(i, pickedMyth) {
+  if (mythDone[i]) return;                       // already answered correctly
+  const m = myths[i];
+  const myBtn = document.getElementById('myth'+i+'-myth');
+  const ftBtn = document.getElementById('myth'+i+'-fact');
+  const pickedBtn = pickedMyth ? myBtn : ftBtn;
+  const v = document.getElementById('myth'+i+'-v');
+  const correct = (pickedMyth === m.isMyth);
+  if (correct) {
+    pickedBtn.classList.remove('picked-wrong');
+    pickedBtn.classList.add('picked-correct');
+    myBtn.disabled = true; ftBtn.disabled = true;
+    v.className = 'myth-verdict show ' + (m.isMyth ? 'is-myth' : 'is-fact');
+    v.querySelector('.verdict-tag').textContent = (m.isMyth ? 'Myth' : 'Fact');
+    v.querySelector('.verdict-body').innerHTML = m.verdict;
+    mythDone[i] = true;
+    if (!mythWrong[i]) mythCorrect++;            // counts only if right first time
+  } else {
+    pickedBtn.classList.add('picked-wrong');
+    pickedBtn.disabled = true;                   // can't pick this one again
+    mythWrong[i] = true;
+    v.className = 'myth-verdict show is-hint';
+    v.querySelector('.verdict-tag').textContent = '';
+    v.querySelector('.verdict-body').innerHTML = '❌ Not quite — have another go.';
+  }
+  updateMythScore();
+}
+function updateMythScore() {
+  const el = document.getElementById('mythRunningScore');
+  const done = Object.keys(mythDone).length;
+  if (done === 0) { el.textContent = '6 statements — myth or fact?'; return; }
+  el.textContent = mythCorrect + ' / ' + myths.length + ' correct first time' + (done === myths.length ? ' — round complete ✓' : '');
+  if (done === myths.length && !sectionDone[3]) { sectionDone[3] = true; updateTab(3); updateProgress(); }
+}
+
+// ── Quiz ───────────────────────────────────────────────────────
+const questions = ['qq1','qq2','qq3','qq4','qq5'];
+function answer(btn, qid, correct, explanation) {
+  if (qDone[qid]) return;                    // question already answered correctly
+  const fb = document.getElementById('fb-' + qid);
+  if (correct) {
+    btn.classList.remove('wrong');
+    btn.classList.add('correct');
+    document.getElementById(qid).querySelectorAll('.option-btn').forEach(b => { b.disabled = true; });
+    fb.className = 'feedback show correct';
+    fb.innerHTML = '✅ ' + explanation;
+    qDone[qid] = true;
+    if (!qWrong[qid]) quizScore++;           // only counts if right first time
+    if (Object.keys(qDone).length === questions.length) showResults();
+  } else {
+    btn.classList.add('wrong');
+    btn.disabled = true;                     // can't pick this wrong one again
+    qWrong[qid] = true;
+    fb.className = 'feedback show wrong';
+    fb.innerHTML = '❌ ' + explanation + ' <strong>Have another go.</strong>';
+  }
+}
+function showResults() {
+  document.getElementById('quizResults').style.display = 'block';
+  document.getElementById('retryBtn').style.display = 'flex';
+  document.getElementById('scoreNum').textContent = quizScore + '/5';
+  const msgs = ['Worth another look — revisit The Big Idea and try again.','Good start — review the family map to firm up the distinctions.','Solid. A quick review will cement the details.','Strong grasp of the fundamentals!','Excellent — you can confidently tell the AI families apart.'];
+  document.getElementById('scoreMsg').textContent = msgs[quizScore] || '';
+  sectionDone[4] = true; updateTab(4); updateProgress();
+  document.getElementById('quizResults').scrollIntoView({ behavior: 'smooth' });
+}
+function retryQuiz() {
+  quizScore = 0;
+  questions.forEach(qid => { delete qDone[qid]; delete qWrong[qid]; });
+  questions.forEach(qid => {
+    document.getElementById(qid).querySelectorAll('.option-btn').forEach(b => { b.disabled = false; b.className = 'option-btn'; });
+    document.getElementById('fb-' + qid).className = 'feedback';
+  });
+  document.getElementById('quizResults').style.display = 'none';
+  document.getElementById('retryBtn').style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Init ───────────────────────────────────────────────────────
+renderMyths();
+updateProgress();
+</script>
+</body>
+</html>
